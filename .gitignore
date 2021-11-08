@@ -3,3 +3,4 @@ node_modules/
 public/
 config.js
 bat/
+*.iml
