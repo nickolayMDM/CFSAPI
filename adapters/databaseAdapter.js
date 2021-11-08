@@ -1,8 +1,9 @@
 const { MongoClient, ObjectId } = require("mongodb");
+const config = require("../config");
 const validators = require("../helpers/validators");
 const textHelpers = require("../helpers/text");
-const url = "mongodb://root:root@localhost:27017/?authSource=dungeonclicker&readPreference=primary&appname=MongoDB%20Compass&ssl=false";
-const databaseName = "contentFolders";
+const url = config.database.url;
+const databaseName = config.database.databaseName;
 const client = new MongoClient(url);
 
 const _convertIDPropertyFromDatabase = (data) => {
