@@ -5,6 +5,7 @@ const generateGuestUserFactory = require("../useCases/generateGuestUser");
 const getUserByIDFactory = require("../useCases/getUserByID");
 const getUserByCookieFactory = require("../useCases/getUserByCookie");
 const validators = require("../helpers/validators");
+const objectHelpers = require("../helpers/object");
 const httpHelpers = require("../helpers/http");
 const config = require("../config");
 
@@ -18,7 +19,7 @@ const _generateNewUser = async (req, res) => {
         isPopulatedObject: validators.isPopulatedObject,
         isTimestamp: validators.isTimestamp,
         generateDatabaseID: database.generateID,
-        insertMultipleIntoDatabase: database.insertMultiple,
+        insertEntityIntoDatabase: database.insertEntity,
         generateUserCookie: userCookieGenerator.generateUserCookie
     });
     const newGuestUserData = await generateGuestUser({
@@ -42,7 +43,12 @@ const _getUserByID = async (userID) => {
         isWithin: validators.isWithin,
         isID: database.isID,
         isNull: validators.isNull,
-        findOneFromDatabase: database.findOne
+        findOneFromDatabase: database.findOne,
+        isPopulatedString: validators.isPopulatedString,
+        isPopulatedObject: validators.isPopulatedObject,
+        isTimestamp: validators.isTimestamp,
+        generateDatabaseID: database.generateID,
+        insertEntityIntoDatabase: objectHelpers.transformEntityIntoASimpleObject
     });
 
     return await getUserByID({
@@ -58,7 +64,12 @@ const _getUserByCookie = async ({userID, cookieValue, deviceValue, IP}) => {
         isID: database.isID,
         isNull: validators.isNull,
         generateUserCookie: userCookieGenerator.generateUserCookie,
-        findOneFromDatabase: database.findOne
+        generateDatabaseID: database.generateID,
+        findOneFromDatabase: database.findOne,
+        isPopulatedString: validators.isPopulatedString,
+        isPopulatedObject: validators.isPopulatedObject,
+        isTimestamp: validators.isTimestamp,
+        insertEntityIntoDatabase: objectHelpers.transformEntityIntoASimpleObject
     });
 
     return getUserByCookie({

@@ -14,7 +14,8 @@ let addFolderFactory = (
         isBoolean,
         generateDatabaseID,
         findOneFromDatabase,
-        insertEntityIntoDatabase
+        insertEntityIntoDatabase,
+        transformEntityIntoASimpleObject
     }
 ) => {
     const insertUserLog = async ({userID, folderID}) => {
@@ -124,19 +125,17 @@ let addFolderFactory = (
             name,
             folderCollectionData
         });
-        let folderData = {
-            ID: folder.getID(),
-            name: folder.getName()
-        };
-        if (typeof folder.getParentID === "function") {
-            folderData.parentID = folder.getParentID();
-        }
 
         await insertUserLog({
             userID,
             folderID: folder.getID()
         });
 
+        let folderData = transformEntityIntoASimpleObject(folder, [
+            "ID",
+            "name",
+            "parentID"
+        ]);
         return Object.freeze(folderData);
     }
 };

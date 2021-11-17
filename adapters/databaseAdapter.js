@@ -2,6 +2,7 @@ const { MongoClient, ObjectId } = require("mongodb");
 const config = require("../config");
 const validators = require("../helpers/validators");
 const textHelpers = require("../helpers/text");
+const objectHelpers = require("../helpers/object");
 const url = config.database.url;
 const databaseName = config.database.databaseName;
 const client = new MongoClient(url);
@@ -114,16 +115,7 @@ const databaseAdapter = {
         await clientConnection.close();
     },
     insertEntity: async ({collectionData, entityData, databaseConnection}) => {
-        let data = {};
-        for (let key in entityData) {
-            if (!entityData.hasOwnProperty(key) || typeof entityData[key] !== "function" || key.substr(0, 3) !== "get") continue;
-            let dataKey = key.slice(3);
-            if (dataKey !== "ID") {
-                dataKey = textHelpers.uncapitalizeFirstLetter(dataKey);
-            }
-
-            data[dataKey] = entityData[key]();
-        }
+        let data = objectHelpers.transformEntityIntoASimpleObject(entityData);
 
         return await databaseAdapter.insert({
             collectionData,
@@ -148,15 +140,7 @@ const databaseAdapter = {
     },
     updateEntity: async ({collectionData, entityData}) => {
         const ID = entityData.getID();
-        let data = {};
-        for (let key in entityData) {
-            if (!entityData.hasOwnProperty(key) || typeof entityData[key] !== "function" || key.substr(0, 3) !== "get") continue;
-            let dataKey = key.slice(3);
-            if (dataKey === "ID") continue;
-            dataKey = textHelpers.uncapitalizeFirstLetter(dataKey);
-
-            data[dataKey] = entityData[key]();
-        }
+        let data = objectHelpers.transformEntityIntoASimpleObject(entityData);
 
         await databaseAdapter.update({
             collectionData,

@@ -13,10 +13,40 @@ let deletePostFactory = (
         isJsonString,
         isUrl,
         findOneFromDatabase,
-        updateInDatabase
+        updateInDatabase,
+        insertEntityIntoDatabase,
+        generateDatabaseID,
+        isPopulatedObject,
+        isTimestamp,
+        transformEntityIntoASimpleObject
     }
 ) => {
-    //TODO: move all internal functions in use cases under the main return
+    const insertUserLog = async ({userID, postID}) => {
+        const userLogCollectionData = userLogEntity.getCollectionData();
+        const userLogID = generateDatabaseID({
+            collectionName: userLogCollectionData.name
+        });
+        const buildUserLog = userLogEntity.buildUserLogFactory({
+            isDefined,
+            isID,
+            isPopulatedString,
+            isPopulatedObject,
+            isTimestamp
+        });
+        const userLog = buildUserLog({
+            ID: userLogID,
+            userID,
+            description: "Deleted a post item",
+            additional: {
+                postID
+            }
+        });
+        await insertEntityIntoDatabase({
+            collectionData: userLogCollectionData,
+            entityData: userLog
+        });
+    };
+
     const deletePost = async ({postData, postCollectionData}) => {
         postData.isDeleted = true;
 
@@ -73,22 +103,20 @@ let deletePostFactory = (
             postData
         });
 
-        const newPostData = {
-            ID: post.getID(),
-            userID: post.getUserID(),
-            name: post.getName(),
-            url: post.getUrl(),
-            isDeleted: post.getIsDeleted()
-        };
-        if (typeof post.getFolderID === "function") {
-            newPostData.folderID = post.getFolderID();
-        }
-        if (typeof post.getImageUrl === "function") {
-            newPostData.imageUrl = post.getImageUrl();
-        }
-        if (typeof post.getAuthor === "function") {
-            newPostData.author = post.getAuthor();
-        }
+        await insertUserLog({
+            userID,
+            postID
+        });
+
+        const newPostData = transformEntityIntoASimpleObject(post, [
+            "ID",
+            "userID",
+            "name",
+            "url",
+            "isDeleted",
+            "folderID",
+            "author"
+        ]);
         return Object.freeze(newPostData);
     }
 };

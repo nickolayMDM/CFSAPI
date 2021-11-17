@@ -19,10 +19,11 @@ let movePostFactory = (
         generateDatabaseID,
         findOneFromDatabase,
         insertEntityIntoDatabase,
-        updateInDatabase
+        updateInDatabase,
+        transformEntityIntoASimpleObject
     }
 ) => {
-    const insertUserLog = async ({userID, folderID, originalData}) => {
+    const insertUserLog = async ({userID, postID, originalData}) => {
         const userLogCollectionData = userLogEntity.getCollectionData();
         const userLogID = generateDatabaseID({
             collectionName: userLogCollectionData.name
@@ -37,10 +38,10 @@ let movePostFactory = (
         const userLog = buildUserLog({
             ID: userLogID,
             userID,
-            description: "Moved a folder",
+            description: "Moved a post item",
             additional: {
                 originalData,
-                folderID
+                postID
             }
         });
 
@@ -59,21 +60,17 @@ let movePostFactory = (
             isJsonString,
             isUrl
         });
-        //TODO: make an entity function to transform entity into a simple array
-        const postData = {
-            ID: oldPost.getID(),
-            userID: oldPost.getUserID(),
-            url: oldPost.getUrl(),
-            originalData: oldPost.getOriginalData(),
-            name: oldPost.getName(),
-            isDeleted: oldPost.getIsDeleted()
-        };
-        if (typeof oldPost.getImageUrl === "function") {
-            postData.imageUrl = oldPost.getImageUrl();
-        }
-        if (typeof oldPost.getAuthor === "function") {
-            postData.author = oldPost.getAuthor();
-        }
+
+
+        const postData = transformEntityIntoASimpleObject(oldPost, [
+            "ID",
+            "userID",
+            "url",
+            "originalData",
+            "name",
+            "isDeleted",
+            "author"
+        ]);
 
         if (isID(folderID)) {
             postData.folderID = folderID;
@@ -192,37 +189,28 @@ let movePostFactory = (
         //TODO: add logging to all use cases
         //TODO: clean up use cases
 
-        // const userLogOriginalData = {
-        //     ID: oldFolder.getID(),
-        //     userID: oldFolder.getUserID(),
-        //     name: oldFolder.getName(),
-        //     isDeleted: oldFolder.getIsDeleted()
-        // };
-        // if (typeof oldFolder.getParentID === "function") {
-        //     userLogOriginalData.parentID = oldFolder.getParentID();
-        // }
-        // await insertUserLog({
-        //     userID,
-        //     folderID: oldFolder.getID(),
-        //     originalData: userLogOriginalData
-        // });
+        const userLogOriginalData = transformEntityIntoASimpleObject(oldPost, [
+            "ID",
+            "userID",
+            "name",
+            "isDeleted",
+            "folderID",
+        ]);
+        await insertUserLog({
+            userID,
+            folderID: oldPost.getID(),
+            originalData: userLogOriginalData
+        });
 
-        const newPostData = {
-            ID: newPost.getID(),
-            userID: newPost.getUserID(),
-            name: newPost.getName(),
-            url: newPost.getUrl(),
-            isDeleted: newPost.getIsDeleted()
-        };
-        if (typeof newPost.getFolderID === "function") {
-            newPostData.folderID = newPost.getFolderID();
-        }
-        if (typeof newPost.getImageUrl === "function") {
-            newPostData.imageUrl = newPost.getImageUrl();
-        }
-        if (typeof newPost.getAuthor === "function") {
-            newPostData.author = newPost.getAuthor();
-        }
+        const newPostData = transformEntityIntoASimpleObject(oldPost, [
+            "ID",
+            "userID",
+            "name",
+            "url",
+            "isDeleted",
+            "folderID",
+            "author"
+        ]);
         return Object.freeze(newPostData);
     }
 };

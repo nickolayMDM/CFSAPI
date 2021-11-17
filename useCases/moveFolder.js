@@ -15,7 +15,8 @@ let moveFolderFactory = (
         generateDatabaseID,
         findOneFromDatabase,
         insertEntityIntoDatabase,
-        updateInDatabase
+        updateInDatabase,
+        transformEntityIntoASimpleObject
     }
 ) => {
     const insertUserLog = async ({userID, folderID, originalData}) => {
@@ -157,30 +158,26 @@ let moveFolderFactory = (
             folderCollectionData
         });
 
-        // const userLogOriginalData = {
-        //     ID: oldFolder.getID(),
-        //     userID: oldFolder.getUserID(),
-        //     name: oldFolder.getName(),
-        //     isDeleted: oldFolder.getIsDeleted()
-        // };
-        // if (typeof oldFolder.getParentID === "function") {
-        //     userLogOriginalData.parentID = oldFolder.getParentID();
-        // }
-        // await insertUserLog({
-        //     userID,
-        //     folderID: oldFolder.getID(),
-        //     originalData: userLogOriginalData
-        // });
+        const userLogOriginalData = transformEntityIntoASimpleObject(oldFolder, [
+            "ID",
+            "userID",
+            "name",
+            "isDeleted",
+            "parentID"
+        ]);
+        await insertUserLog({
+            userID,
+            folderID: oldFolder.getID(),
+            originalData: userLogOriginalData
+        });
 
-        const newFolderData = {
-            ID: newFolder.getID(),
-            userID: newFolder.getUserID(),
-            name: newFolder.getName(),
-            isDeleted: newFolder.getIsDeleted()
-        };
-        if (typeof newFolder.getParentID === "function") {
-            newFolderData.parentID = newFolder.getParentID();
-        }
+        const newFolderData = transformEntityIntoASimpleObject(newFolder, [
+            "ID",
+            "userID",
+            "name",
+            "isDeleted",
+            "parentID"
+        ]);
         return Object.freeze(newFolderData);
     }
 };

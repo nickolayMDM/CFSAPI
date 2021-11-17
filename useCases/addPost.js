@@ -20,7 +20,8 @@ let addPostFactory = (
         findOneFromDatabase,
         insertEntityIntoDatabase,
         processPostInput,
-        imageProcessorObject
+        imageProcessorObject,
+        transformEntityIntoASimpleObject
     }
 ) => {
     const insertUserLog = async ({userID, postID}) => {
@@ -43,15 +44,9 @@ let addPostFactory = (
                 postID
             }
         });
-        await insertIntoDatabase({
+        await insertEntityIntoDatabase({
             collectionData: userLogCollectionData,
-            entityData: {
-                ID: userLog.getID(),
-                userID: userLog.getUserID(),
-                description: userLog.getDescription(),
-                timestamp: userLog.getTimestamp(),
-                additional: userLog.getAdditional()
-            }
+            entityData: userLog
         });
     };
 
@@ -80,7 +75,7 @@ let addPostFactory = (
         await imageProcessor.saveToPath(path);
     };
 
-    const addPost = async ({postID, userID, folderID, name, postInputData, postCollectionData, url, imagePath}) => {
+    const addPost = async ({postID, userID, folderID, name, postInputData, postCollectionData, url}) => {
         const buildPost = postEntity.buildPostFactory({
             isDefined,
             isID,
@@ -129,13 +124,6 @@ let addPostFactory = (
                 && !isID(folderID)
             )
         ) {
-            console.log({
-                userID,
-                folderID,
-                name,
-                url,
-                data
-            });
             throw new TypeError(errorPrefix + "invalid data passed");
         }
 
@@ -178,7 +166,7 @@ let addPostFactory = (
         const postID = generateDatabaseID({
             collectionName: postEntity.getCollectionData()
         });
-        const imagePath = await saveImage({
+        await saveImage({
             url: processPostInputResult.response.postDetails.imageUrl,
             postID
         });
@@ -192,15 +180,17 @@ let addPostFactory = (
             url
         });
 
-        let postData = {
-            ID: post.getID(),
-            name: post.getName(),
-            url: post.getUrl()
-        };
-        if (typeof post.getFolderID === "function") {
-            postData.folderID = post.getFolderID();
-        }
+        await insertUserLog({
+            userID,
+            postID
+        });
 
+        let postData = transformEntityIntoASimpleObject(post, [
+            "ID",
+            "name",
+            "url",
+            "folderID"
+        ]);
         return Object.freeze(postData);
     }
 };

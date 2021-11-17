@@ -1,4 +1,5 @@
 const userEntity = require("../entities/userEntity");
+const userLogEntity = require("../entities/userLogEntity");
 
 let getUserByCookieFactory = (
     {
@@ -8,9 +9,44 @@ let getUserByCookieFactory = (
         isID,
         isNull,
         generateUserCookie,
-        findOneFromDatabase
+        generateDatabaseID,
+        findOneFromDatabase,
+        isPopulatedString,
+        isPopulatedObject,
+        isTimestamp,
+        insertEntityIntoDatabase
     }
 ) => {
+    const insertUserLog = async ({userID, realCookieValue, cookieValue, deviceValue, IP}) => {
+        const userLogCollectionData = userLogEntity.getCollectionData();
+        const userLogID = generateDatabaseID({
+            collectionData: userLogCollectionData
+        });
+        const userLogDescription = "User login by cookie attempt";
+        const buildUserLog = userLogEntity.buildUserLogFactory({
+            isDefined,
+            isID,
+            isPopulatedString,
+            isPopulatedObject,
+            isTimestamp
+        });
+        const userLog = buildUserLog({
+            ID: userLogID,
+            userID,
+            description: userLogDescription,
+            additional: {
+                realCookieValue,
+                cookieValue,
+                deviceValue,
+                IP
+            }
+        });
+        await insertEntityIntoDatabase({
+            collectionData: userLogCollectionData,
+            entityData: userLog
+        });
+    };
+
     return async (
         {
             userID,
@@ -25,8 +61,6 @@ let getUserByCookieFactory = (
             userID
         });
 
-        console.log("realCookieValue", deviceValue, IP, userID);
-        console.log("getUserByCookie", realCookieValue, cookieValue);
         if (realCookieValue !== cookieValue) {
             throw new Error("cookie value does not match the provided data");
         }
@@ -48,6 +82,14 @@ let getUserByCookieFactory = (
             isID
         });
         const user = buildUser(userData);
+
+        await insertUserLog({
+            userID,
+            realCookieValue,
+            cookieValue,
+            deviceValue,
+            IP
+        });
 
         return user;
     }

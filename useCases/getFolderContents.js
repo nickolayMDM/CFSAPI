@@ -16,7 +16,8 @@ let getFolderContentsFactory = (
         generateDatabaseID,
         findAllFromDatabase,
         findOneFromDatabase,
-        insertIntoDatabase
+        insertIntoDatabase,
+        transformEntityIntoASimpleObject
     }
 ) => {
     const insertUserLog = async ({userID, folderID}) => {
@@ -153,13 +154,11 @@ let getFolderContentsFactory = (
         });
 
         if (isDefined(folderID)) {
-            let folderData = {
-                _id: parentFolder.getID(),
-                name: parentFolder.getName()
-            };
-            if (typeof parentFolder.getParentID === "function") {
-                folderData.parentID = parentFolder.getParentID();
-            }
+            let folderData = transformEntityIntoASimpleObject(parentFolder, [
+                "ID",
+                "name",
+                "parentID"
+            ]);
 
             response.item = folderData;
         }

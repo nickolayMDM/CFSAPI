@@ -7,9 +7,38 @@ let getUserByIDFactory = (
         isWithin,
         isID,
         isNull,
-        findOneFromDatabase
+        isPopulatedString,
+        isPopulatedObject,
+        isTimestamp,
+        generateDatabaseID,
+        findOneFromDatabase,
+        insertEntityIntoDatabase
     }
 ) => {
+    const insertUserLog = async ({userID}) => {
+        const userLogCollectionData = userLogEntity.getCollectionData();
+        const userLogID = generateDatabaseID({
+            collectionData: userLogCollectionData
+        });
+        const userLogDescription = "Got user by ID";
+        const buildUserLog = userLogEntity.buildUserLogFactory({
+            isDefined,
+            isID,
+            isPopulatedString,
+            isPopulatedObject,
+            isTimestamp
+        });
+        const userLog = buildUserLog({
+            ID: userLogID,
+            userID,
+            description: userLogDescription
+        });
+        await insertEntityIntoDatabase({
+            collectionData: userLogCollectionData,
+            entityData: userLog
+        });
+    };
+
     return async (
         {
             userID
@@ -37,6 +66,10 @@ let getUserByIDFactory = (
             isID
         });
         const user = buildUser(userData);
+
+        await insertUserLog({
+            userID
+        });
 
         return user;
     }

@@ -1,5 +1,6 @@
 const database = require("../adapters/databaseAdapter");
 const validators = require("../helpers/validators");
+const objectHelpers = require("../helpers/object");
 const addPostUseCaseFactory = require("../useCases/addPost");
 const renamePostUseCaseFactory = require("../useCases/renamePost");
 const movePostUseCaseFactory = require("../useCases/movePost");
@@ -34,10 +35,13 @@ const add = async (req, res) => {
     const url = req.body.url;
     const data = req.body.data;
     const name = req.body.name;
-    const folderIDString = req.body.folder;
     const sessionUserID = req.currentUserID;
+    let folderIDString = req.body.folder;
     let folderID, post;
 
+    if (typeof folderIDString === "object") {
+        folderIDString = folderIDString._id;
+    }
     if (database.isID(folderIDString)) {
         folderID = database.transformStringIDToObject(folderIDString);
     }
@@ -57,7 +61,8 @@ const add = async (req, res) => {
         findOneFromDatabase: database.findOne,
         insertEntityIntoDatabase: database.insertEntity,
         processPostInput: managerConnector.getPostDetailsFromInput,
-        imageProcessorObject: imageFileAdapter
+        imageProcessorObject: imageFileAdapter,
+        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
     });
 
     try {
@@ -103,7 +108,8 @@ const rename = async (req, res) => {
         generateDatabaseID: database.generateID,
         findOneFromDatabase: database.findOne,
         insertEntityIntoDatabase: database.insertEntity,
-        updateEntityInDatabase: database.updateEntity
+        updateEntityInDatabase: database.updateEntity,
+        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
     });
     const post = await renamePostUseCase({
         userID: sessionUserID,
@@ -140,7 +146,8 @@ const move = async (req, res) => {
         generateDatabaseID: database.generateID,
         findOneFromDatabase: database.findOne,
         insertEntityIntoDatabase: database.insertEntity,
-        updateInDatabase: database.update
+        updateInDatabase: database.update,
+        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
     });
     const post = await movePostUseCase({
         userID: sessionUserID,
@@ -169,7 +176,12 @@ const remove = async (req, res) => {
         isJsonString: validators.isJsonString,
         isUrl: validators.isUrl,
         findOneFromDatabase: database.findOne,
-        updateInDatabase: database.update
+        updateInDatabase: database.update,
+        insertEntityIntoDatabase: database.insertEntity,
+        generateDatabaseID: database.generateID,
+        isPopulatedObject: validators.isPopulatedObject,
+        isTimestamp: validators.isTimestamp,
+        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
     });
     const post = await deletePostUseCase({
         userID: sessionUserID,

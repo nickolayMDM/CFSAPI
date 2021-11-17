@@ -17,10 +17,11 @@ let renamePostFactory = (
         generateDatabaseID,
         findOneFromDatabase,
         insertEntityIntoDatabase,
-        updateEntityInDatabase
+        updateEntityInDatabase,
+        transformEntityIntoASimpleObject
     }
 ) => {
-    const insertUserLog = async ({userID, folderID, originalData}) => {
+    const insertUserLog = async ({userID, postID, originalData}) => {
         const userLogCollectionData = userLogEntity.getCollectionData();
         const userLogID = generateDatabaseID({
             collectionName: userLogCollectionData.name
@@ -35,10 +36,10 @@ let renamePostFactory = (
         const userLog = buildUserLog({
             ID: userLogID,
             userID,
-            description: "Renamed a folder",
+            description: "Renamed a post item",
             additional: {
                 originalData,
-                folderID
+                postID
             }
         });
 
@@ -49,23 +50,16 @@ let renamePostFactory = (
     };
 
     const renamePost = async ({oldPost, name, postCollectionData}) => {
-        const postData = {
-            ID: oldPost.getID(),
-            userID: oldPost.getUserID(),
-            originalData: oldPost.getOriginalData(),
-            url: oldPost.getUrl(),
-            name,
-            isDeleted: oldPost.getIsDeleted()
-        };
-        if (typeof oldPost.getFolderID === "function") {
-            postData.folderID = oldPost.getFolderID();
-        }
-        if (typeof oldPost.getImageUrl === "function") {
-            postData.imageUrl = oldPost.getImageUrl();
-        }
-        if (typeof oldPost.getAuthor === "function") {
-            postData.author = oldPost.getAuthor();
-        }
+        let postData = transformEntityIntoASimpleObject(oldPost, [
+            "ID",
+            "userID",
+            "originalData",
+            "url",
+            "isDeleted",
+            "folderID",
+            "author",
+        ]);
+        postData.name = name;
 
         const buildPost = postEntity.buildPostFactory({
             isDefined,
@@ -148,38 +142,22 @@ let renamePostFactory = (
             postCollectionData
         });
 
-        // const userLogOriginalData = {
-        //     ID: oldFolder.getID(),
-        //     userID: oldFolder.getUserID(),
-        //     name: oldFolder.getName(),
-        //     isDeleted: oldFolder.getIsDeleted()
-        // };
-        // if (typeof oldFolder.getParentID === "function") {
-        //     userLogOriginalData.parentID = oldFolder.getParentID();
-        // }
-        // await insertUserLog({
-        //     userID,
-        //     folderID: oldFolder.getID(),
-        //     originalData: userLogOriginalData
-        // });
+        const userLogOriginalData = transformEntityIntoASimpleObject(oldPost);
+        await insertUserLog({
+            userID,
+            postID: oldPost.getID(),
+            originalData: userLogOriginalData
+        });
 
-        //TODO: reoccurring code piece - move to entity as a function
-        const newPostData = {
-            ID: newPost.getID(),
-            userID: newPost.getUserID(),
-            name: newPost.getName(),
-            url: newPost.getUrl(),
-            isDeleted: newPost.getIsDeleted()
-        };
-        if (typeof newPost.getFolderID === "function") {
-            newPostData.folderID = newPost.getFolderID();
-        }
-        if (typeof newPost.getImageUrl === "function") {
-            newPostData.imageUrl = newPost.getImageUrl();
-        }
-        if (typeof newPost.getAuthor === "function") {
-            newPostData.author = newPost.getAuthor();
-        }
+        const newPostData = transformEntityIntoASimpleObject(newPost, [
+            "ID",
+            "userID",
+            "name",
+            "url",
+            "isDeleted",
+            "folderID",
+            "author",
+        ]);
         return Object.freeze(newPostData);
     }
 };

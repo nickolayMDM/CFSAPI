@@ -11,9 +11,40 @@ let deleteFolderFactory = (
         isNull,
         isBoolean,
         findOneFromDatabase,
-        updateInDatabase
+        updateInDatabase,
+        generateDatabaseID,
+        isPopulatedObject,
+        insertEntityIntoDatabase,
+        isTimestamp,
+        transformEntityIntoASimpleObject
     }
 ) => {
+    const insertUserLog = async ({userID, folderID}) => {
+        const userLogCollectionData = userLogEntity.getCollectionData();
+        const userLogID = generateDatabaseID({
+            collectionName: userLogCollectionData.name
+        });
+        const buildUserLog = userLogEntity.buildUserLogFactory({
+            isDefined,
+            isID,
+            isPopulatedString,
+            isPopulatedObject,
+            isTimestamp
+        });
+        const userLog = buildUserLog({
+            ID: userLogID,
+            userID,
+            description: "Deleted a folder",
+            additional: {
+                folderID
+            }
+        });
+        await insertEntityIntoDatabase({
+            collectionData: userLogCollectionData,
+            entityData: userLog
+        });
+    };
+
     const deleteFolder = async ({folderData, folderCollectionData}) => {
         folderData.isDeleted = true;
 
@@ -66,15 +97,18 @@ let deleteFolderFactory = (
             folderData
         });
 
-        const newFolderData = {
-            ID: folder.getID(),
-            userID: folder.getUserID(),
-            name: folder.getName(),
-            isDeleted: folder.getIsDeleted()
-        };
-        if (typeof folder.getParentID === "function") {
-            newFolderData.parentID = folder.getParentID();
-        }
+        await insertUserLog({
+            userID,
+            folderID
+        });
+
+        const newFolderData = transformEntityIntoASimpleObject(folder, [
+            "ID",
+            "userID",
+            "name",
+            "parentID",
+            "isDeleted"
+        ]);
         return Object.freeze(newFolderData);
     }
 };

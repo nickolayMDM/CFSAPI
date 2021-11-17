@@ -1,5 +1,6 @@
 const database = require("../adapters/databaseAdapter");
 const validators = require("../helpers/validators");
+const objectHelpers = require("../helpers/object");
 const getFolderContentsUseCaseFactory = require("../useCases/getFolderContents");
 const addFolderUseCaseFactory = require("../useCases/addFolder");
 const renameFolderUseCaseFactory = require("../useCases/renameFolder");
@@ -22,7 +23,8 @@ const getContents = async (req, res) => {
         generateDatabaseID: database.generateID,
         findAllFromDatabase: database.findAll,
         findOneFromDatabase: database.findOne,
-        insertIntoDatabase: database.insert
+        insertIntoDatabase: database.insert,
+        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
     });
     try {
         contents = await getFolderContentsUseCase({
@@ -42,10 +44,13 @@ const getContents = async (req, res) => {
 
 const post = async (req, res) => {
     const name = req.body.name;
-    const parentIDString = req.body.parent;
     const sessionUserID = req.currentUserID;
+    let parentIDString = req.body.parent;
     let parentID, folder;
 
+    if (typeof parentIDString === "object") {
+        parentIDString = parentIDString._id;
+    }
     if (database.isID(parentIDString)) {
         parentID = database.transformStringIDToObject(parentIDString);
     }
@@ -60,7 +65,8 @@ const post = async (req, res) => {
         isBoolean: validators.isBoolean,
         generateDatabaseID: database.generateID,
         findOneFromDatabase: database.findOne,
-        insertEntityIntoDatabase: database.insertEntity
+        insertEntityIntoDatabase: database.insertEntity,
+        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
     });
 
     try {
@@ -102,7 +108,8 @@ const rename = async (req, res) => {
         generateDatabaseID: database.generateID,
         findOneFromDatabase: database.findOne,
         insertEntityIntoDatabase: database.insertEntity,
-        updateEntityInDatabase: database.updateEntity
+        updateEntityInDatabase: database.updateEntity,
+        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
     });
     const folder = await renameFolderUseCase({
         userID: sessionUserID,
@@ -137,7 +144,8 @@ const move = async (req, res) => {
         generateDatabaseID: database.generateID,
         findOneFromDatabase: database.findOne,
         insertEntityIntoDatabase: database.insertEntity,
-        updateInDatabase: database.update
+        updateInDatabase: database.update,
+        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
     });
     const folder = await moveFolderUseCase({
         userID: sessionUserID,
@@ -164,7 +172,12 @@ const remove = async (req, res) => {
         isNull: validators.isNull,
         isBoolean: validators.isBoolean,
         findOneFromDatabase: database.findOne,
-        updateInDatabase: database.update
+        updateInDatabase: database.update,
+        generateDatabaseID: database.generateID,
+        isPopulatedObject: validators.isPopulatedObject,
+        insertEntityIntoDatabase: database.insertEntity,
+        isTimestamp: validators.isTimestamp,
+        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
     });
     const folder = await deleteFolderUseCase({
         userID: sessionUserID,

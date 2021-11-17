@@ -11,30 +11,11 @@ let generateGuestUserFactory = (
         isPopulatedObject,
         isTimestamp,
         generateDatabaseID,
-        insertMultipleIntoDatabase,
+        insertEntityIntoDatabase,
         generateUserCookie
     }
 ) => {
-    return async (
-        {
-            deviceValue,
-            IP
-        }
-    ) => {
-        const userCollectionData = userEntity.getCollectionData();
-        const userID = generateDatabaseID({
-            collectionData: userCollectionData
-        });
-        const buildUser = userEntity.buildUserFactory({
-            isDefined,
-            isEmail,
-            isWithin,
-            isID
-        });
-        const user = buildUser({
-            ID: userID
-        });
-
+    const insertUserLog = async ({userID, cookie, deviceValue, IP}) => {
         const userLogCollectionData = userLogEntity.getCollectionData();
         const userLogID = generateDatabaseID({
             collectionData: userLogCollectionData
@@ -50,34 +31,65 @@ let generateGuestUserFactory = (
         const userLog = buildUserLog({
             ID: userLogID,
             userID,
-            description: userLogDescription
+            description: userLogDescription,
+            additional: {
+                cookie,
+                deviceValue,
+                IP
+            }
+        });
+        await insertEntityIntoDatabase({
+            collectionData: userLogCollectionData,
+            entityData: userLog
+        });
+    };
+
+    const generateUser = async ({userID, userCollectionData}) => {
+        const buildUser = userEntity.buildUserFactory({
+            isDefined,
+            isEmail,
+            isWithin,
+            isID
+        });
+        const user = buildUser({
+            ID: userID
         });
 
-        await insertMultipleIntoDatabase({
-            insertArray: [
-                {
-                    collectionData: userCollectionData,
-                    data: {
-                        ID: user.getID(),
-                        status: user.getStatus()
-                    }
-                },
-                {
-                    collectionData: userLogCollectionData,
-                    data: {
-                        ID: userLog.getID(),
-                        userID: userLog.getUserID(),
-                        description: userLog.getDescription(),
-                        timestamp: userLog.getTimestamp()
-                    }
-                }
-            ]
+        await insertEntityIntoDatabase({
+            collectionData: userCollectionData,
+            entityData: user
+        });
+
+        return user;
+    };
+
+    return async (
+        {
+            deviceValue,
+            IP
+        }
+    ) => {
+        const userCollectionData = userEntity.getCollectionData();
+        const userID = generateDatabaseID({
+            collectionData: userCollectionData
+        });
+
+        const user = await generateUser({
+            userID,
+            userCollectionData
         });
 
         const cookie = await generateUserCookie({
             deviceValue,
             IP,
             userID
+        });
+
+        await insertUserLog({
+            userID,
+            deviceValue,
+            IP,
+            cookie
         });
 
         return {
