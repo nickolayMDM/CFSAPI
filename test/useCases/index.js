@@ -1,6 +1,7 @@
 const runGetFolderContentsTest = require("./getFolderContents");
 const runGenerateGuestUserTest = require("./generateGuestUser");
 const runGetUserByCookieTest = require("./getUserByCookie");
+const runAddFolder = require("./addFolder");
 
 const run = async (
     {
@@ -14,11 +15,15 @@ const run = async (
         isPopulatedString,
         isPopulatedObject,
         isTimestamp,
+        isBoolean,
+        isNull,
         isCookie,
         isEmail,
         isWithin,
         isID,
-        generateUserCookie
+        isObject,
+        generateUserCookie,
+        transformEntityIntoASimpleObject
     }
 ) => {
     let databaseMock = {
@@ -29,20 +34,50 @@ const run = async (
                 this._storage[collectionData.name] = [];
             }
         },
+        _itemIsWithinFilter: function({item, filter}) {
+            for (let filterKey in filter) {
+                if (!filter.hasOwnProperty(filterKey)) continue;
+
+                let filterValue = filter[filterKey];
+                if (isObject(filterValue)) {
+                    if (typeof filterValue["$exists"] === "boolean") {
+                        if (
+                            (filterValue["$exists"] && typeof item[filterKey] === "undefined")
+                            || (!filterValue["$exists"] && typeof item[filterKey] !== "undefined")
+                        ) {
+                            return false
+                        }
+                    }
+                } else {
+                    if (item[filterKey] !== filterValue) {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        },
         isID: (value) => {
             return isInt(value)
         },
-        generateID: function({collectionData = {name: ""}} = {}) {
-            if (typeof this._ids[collectionData.name] === "undefined") {
-                this._ids[collectionData.name] = 0;
+        generateID: function({collectionName = ""} = {}) {
+            if (typeof this._ids[collectionName] === "undefined") {
+                this._ids[collectionName] = 0;
             }
 
-            return this._ids[collectionData.name]++;
+            return this._ids[collectionName]++;
         },
         insert: function ({collectionData, data}) {
             this._createCollection({
                 collectionData: collectionData
             });
+            this._storage[collectionData.name].push(data);
+        },
+        insertEntity: function ({collectionData, entityData}) {
+            this._createCollection({
+                collectionData: collectionData
+            });
+            const data = transformEntityIntoASimpleObject(entityData);
             this._storage[collectionData.name].push(data);
         },
         insertMultiple: function ({insertArray = []} = {}) {
@@ -57,17 +92,12 @@ const run = async (
         },
         findAll: function ({collectionData, filter = {}}) {
             let result = [];
-            itemLoop: for (let key in this._storage[collectionData.name]) {
+            for (let key in this._storage[collectionData.name]) {
                 if (!this._storage[collectionData.name].hasOwnProperty(key)) continue;
 
                 let item = this._storage[collectionData.name][key];
-                for (let filterKey in filter) {
-                    if (!filter.hasOwnProperty(filterKey)) continue;
-
-                    let filterValue = filter[filterKey];
-                    if (item[filterKey] !== filterValue) {
-                        continue itemLoop;
-                    }
+                if (!this._itemIsWithinFilter({item, filter})) {
+                    continue;
                 }
 
                 result.push(item);
@@ -76,17 +106,15 @@ const run = async (
             return result;
         },
         findOne: function ({collectionData, filter = {}}) {
-            itemLoop: for (let key in this._storage[collectionData.name]) {
+            for (let key in this._storage[collectionData.name]) {
                 if (!this._storage[collectionData.name].hasOwnProperty(key)) continue;
 
                 let item = this._storage[collectionData.name][key];
-                for (let filterKey in filter) {
-                    if (!filter.hasOwnProperty(filterKey)) continue;
-
-                    let filterValue = filter[filterKey];
-                    if (item[filterKey] !== filterValue) {
-                        continue itemLoop;
-                    }
+                if (typeof item === "undefined") {
+                    return null;
+                }
+                if (!this._itemIsWithinFilter({item, filter})) {
+                    continue;
                 }
 
                 return item;
@@ -94,56 +122,85 @@ const run = async (
         }
     };
 
-    runGetFolderContentsTest({
+    runAddFolder({
         testDescribe,
         testIt,
         testEqual,
-        testThrows,
         testBefore,
+        testThrows,
         isDefined,
         isPopulatedString,
         isPopulatedObject,
         isTimestamp,
-        findAllFromDatabase: databaseMock.findAll.bind(databaseMock),
-        insertIntoDatabase: databaseMock.insert.bind(databaseMock),
+        isNull,
+        isBoolean,
+        isObject,
         generateDatabaseID: databaseMock.generateID.bind(databaseMock),
+        insertEntityIntoDatabase: databaseMock.insertEntity.bind(databaseMock),
+        findOneFromDatabase: databaseMock.findOne.bind(databaseMock),
         isID: databaseMock.isID.bind(databaseMock),
+        transformEntityIntoASimpleObject
     });
 
-    runGenerateGuestUserTest({
-        testDescribe,
-        testIt,
-        testEqual,
-        testBefore,
-        isCookie,
-        isDefined,
-        isEmail,
-        isWithin,
-        isID,
-        isPopulatedString,
-        isPopulatedObject,
-        isTimestamp,
-        generateDatabaseID: databaseMock.generateID.bind(databaseMock),
-        insertMultipleIntoDatabase: databaseMock.insertMultiple.bind(databaseMock),
-        findOneFromDatabase: databaseMock.findOne.bind(databaseMock),
-        generateUserCookie
-    });
-
-    runGetUserByCookieTest({
-        testDescribe,
-        testIt,
-        testEqual,
-        testThrows,
-        testBefore,
-        isDefined,
-        isEmail,
-        isWithin,
-        isID,
-        findOneFromDatabase: databaseMock.findOne.bind(databaseMock),
-        insertIntoDatabase: databaseMock.insert.bind(databaseMock),
-        generateDatabaseID: databaseMock.generateID.bind(databaseMock),
-        generateUserCookie
-    });
+    // runGetFolderContentsTest({
+    //     testDescribe,
+    //     testIt,
+    //     testEqual,
+    //     testThrows,
+    //     testBefore,
+    //     isDefined,
+    //     isPopulatedString,
+    //     isPopulatedObject,
+    //     isTimestamp,
+    //     isBoolean,
+    //     isNull,
+    //     transformEntityIntoASimpleObject,
+    //     findAllFromDatabase: databaseMock.findAll.bind(databaseMock),
+    //     findOneFromDatabase: databaseMock.findOne.bind(databaseMock),
+    //     insertIntoDatabase: databaseMock.insert.bind(databaseMock),
+    //     generateDatabaseID: databaseMock.generateID.bind(databaseMock),
+    //     isID: databaseMock.isID.bind(databaseMock)
+    // });
+    //
+    // runGenerateGuestUserTest({
+    //     testDescribe,
+    //     testIt,
+    //     testEqual,
+    //     testBefore,
+    //     isCookie,
+    //     isDefined,
+    //     isEmail,
+    //     isWithin,
+    //     isID,
+    //     isPopulatedString,
+    //     isPopulatedObject,
+    //     isTimestamp,
+    //     generateDatabaseID: databaseMock.generateID.bind(databaseMock),
+    //     findOneFromDatabase: databaseMock.findOne.bind(databaseMock),
+    //     insertEntityIntoDatabase: databaseMock.insertEntity.bind(databaseMock),
+    //     generateUserCookie
+    // });
+    //
+    // runGetUserByCookieTest({
+    //     testDescribe,
+    //     testIt,
+    //     testEqual,
+    //     testThrows,
+    //     testBefore,
+    //     isDefined,
+    //     isEmail,
+    //     isWithin,
+    //     isID,
+    //     isNull,
+    //     isPopulatedString,
+    //     isPopulatedObject,
+    //     isTimestamp,
+    //     generateUserCookie,
+    //     findOneFromDatabase: databaseMock.findOne.bind(databaseMock),
+    //     insertIntoDatabase: databaseMock.insert.bind(databaseMock),
+    //     generateDatabaseID: databaseMock.generateID.bind(databaseMock),
+    //     insertEntityIntoDatabase: databaseMock.insertEntity.bind(databaseMock)
+    // });
 };
 
 module.exports = run;

@@ -16,7 +16,7 @@ const generateGuestUserUseCaseTest = (
         isPopulatedObject,
         isTimestamp,
         generateDatabaseID,
-        insertMultipleIntoDatabase,
+        insertEntityIntoDatabase,
         findOneFromDatabase,
         generateUserCookie
     }
@@ -33,7 +33,7 @@ const generateGuestUserUseCaseTest = (
             isPopulatedObject,
             isTimestamp,
             generateDatabaseID,
-            insertMultipleIntoDatabase,
+            insertEntityIntoDatabase,
             generateUserCookie
         });
         let generatedGuestResult, userDatabaseData;

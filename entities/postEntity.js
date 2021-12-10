@@ -10,7 +10,9 @@ const buildPostFactory = (
         isPopulatedString,
         isBoolean,
         isJsonString,
-        isUrl
+        isUrl,
+        isString,
+        isStringWithin
     }
 ) => {
     return (
@@ -22,7 +24,9 @@ const buildPostFactory = (
             url,
             name,
             author,
-            isDeleted = false
+            note = "",
+            isDeleted = false,
+            isPinned = false
         } = {}
     ) => {
         let postObject = {
@@ -31,7 +35,9 @@ const buildPostFactory = (
             getOriginalData: () => originalData,
             getUrl: () => url,
             getName: () => name,
-            getIsDeleted: () => isDeleted
+            getNote: () => note,
+            getIsDeleted: () => isDeleted,
+            getIsPinned: () => isPinned
         };
 
         if (!isID(ID)) {
@@ -62,6 +68,13 @@ const buildPostFactory = (
             throw new Error(errorPrefix + "name value must be a populated string.");
         }
 
+        if (!isString(note)) {
+            throw new Error(errorPrefix + "note value must be a string.");
+        }
+        if (!isStringWithin(note, 0, 80)) {
+            throw new Error(errorPrefix + "note maximum length must be 80 characters.");
+        }
+
         if (isDefined(author)) {
             if (!isPopulatedString(author)) {
                 throw new Error(errorPrefix + "author name must be a populated string.");
@@ -72,6 +85,10 @@ const buildPostFactory = (
 
         if (!isBoolean(isDeleted)) {
             throw new Error(errorPrefix + "is deleted value has to be a boolean.");
+        }
+
+        if (!isBoolean(isPinned)) {
+            throw new Error(errorPrefix + "is pinned value has to be a boolean.");
         }
 
         return Object.freeze(postObject);

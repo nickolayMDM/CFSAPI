@@ -13,9 +13,11 @@ let getFolderContentsFactory = (
         isTimestamp,
         isBoolean,
         isNull,
+        isPositiveInt,
         generateDatabaseID,
         findAllFromDatabase,
         findOneFromDatabase,
+        countInDatabase,
         insertIntoDatabase,
         transformEntityIntoASimpleObject
     }
@@ -65,7 +67,8 @@ let getFolderContentsFactory = (
 
         return await findAllFromDatabase({
             collectionData: folderCollectionData,
-            filter
+            filter,
+            sort: {isPinned: -1}
         });
     };
 
@@ -82,10 +85,45 @@ let getFolderContentsFactory = (
             filter.folderID = {$exists: false};
         }
 
-        return findAllFromDatabase({
+        return await findAllFromDatabase({
             collectionData: postCollectionData,
-            filter
+            filter,
+            sort: {isPinned: -1}
         });
+    };
+
+    const addIsEmptyToFolders = async ({folders, userID}) => {
+        if (folders.length < 1) {
+            return folders;
+        }
+
+        const postCollectionData = postEntity.getCollectionData();
+        let folderPostIDToArrayKeyCorrelation = {};
+        //TODO: use reduce or smth
+        let folderIDs = [];
+        for (let key in folders) {
+            folders[key].isEmpty = true;
+            folderIDs.push(folders[key].ID);
+            folderPostIDToArrayKeyCorrelation[folders[key].ID] = key;
+        }
+
+        const postCounts = await countInDatabase({
+            collectionData: postCollectionData,
+            filter: {
+                folderID: {$in: folderIDs},
+                isDeleted: false,
+                userID
+            },
+            group: "folderID"
+        });
+
+        for (let key in postCounts) {
+            const ID = postCounts[key].ID.toString();
+            const foldersArrayKey = folderPostIDToArrayKeyCorrelation[ID];
+            folders[foldersArrayKey].isEmpty = !isPositiveInt(postCounts[key].count);
+        }
+
+        return folders;
     };
 
     const getFolderFromDatabase = async ({userID, folderID, folderCollectionData}) => {
@@ -138,6 +176,10 @@ let getFolderContentsFactory = (
         let folders = await findAllFolders({
             userID,
             folderID
+        });
+        folders = await addIsEmptyToFolders({
+            folders,
+            userID
         });
         let posts = await findAllPosts({
             userID,

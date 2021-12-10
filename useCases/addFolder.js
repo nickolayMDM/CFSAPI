@@ -115,7 +115,7 @@ let addFolderFactory = (
                 name: name
             }
         });
-        if (!isNull(existingFolder)) {
+        if (!isNull(existingFolder) && typeof existingFolder !== "undefined") {
             throw new Error(errorPrefix + "folder with this name already exists");
         }
 

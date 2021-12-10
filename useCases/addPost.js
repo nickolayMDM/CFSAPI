@@ -16,6 +16,7 @@ let addPostFactory = (
         isJsonString,
         isUrl,
         isString,
+        isStringWithin,
         generateDatabaseID,
         findOneFromDatabase,
         insertEntityIntoDatabase,
@@ -67,10 +68,10 @@ let addPostFactory = (
 
     const _saveSmallImage = async (imageProcessor, postID) => {
         const extension = imageProcessor.returnExtension();
-        const path = "/public/images/postThumbnails/" + postID + "/small80." + extension;
+        const path = "/public/images/postThumbnails/" + postID + "/small163." + extension;
 
         await imageProcessor.resize({
-            height: 80
+            height: 163
         });
         await imageProcessor.saveToPath(path);
     };
@@ -82,7 +83,9 @@ let addPostFactory = (
             isPopulatedString,
             isBoolean,
             isJsonString,
-            isUrl
+            isUrl,
+            isString,
+            isStringWithin
         });
 
         const post = buildPost({

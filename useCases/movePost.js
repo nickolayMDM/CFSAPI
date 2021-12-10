@@ -16,6 +16,8 @@ let movePostFactory = (
         isBoolean,
         isJsonString,
         isUrl,
+        isString,
+        isStringWithin,
         generateDatabaseID,
         findOneFromDatabase,
         insertEntityIntoDatabase,
@@ -58,19 +60,13 @@ let movePostFactory = (
             isPopulatedString,
             isBoolean,
             isJsonString,
-            isUrl
+            isUrl,
+            isString,
+            isStringWithin
         });
 
 
-        const postData = transformEntityIntoASimpleObject(oldPost, [
-            "ID",
-            "userID",
-            "url",
-            "originalData",
-            "name",
-            "isDeleted",
-            "author"
-        ]);
+        const postData = transformEntityIntoASimpleObject(oldPost);
 
         if (isID(folderID)) {
             postData.folderID = folderID;
@@ -113,7 +109,9 @@ let movePostFactory = (
             isPopulatedString,
             isBoolean,
             isJsonString,
-            isUrl
+            isUrl,
+            isString,
+            isStringWithin
         });
 
         return buildPost(postData);
@@ -189,28 +187,14 @@ let movePostFactory = (
         //TODO: add logging to all use cases
         //TODO: clean up use cases
 
-        const userLogOriginalData = transformEntityIntoASimpleObject(oldPost, [
-            "ID",
-            "userID",
-            "name",
-            "isDeleted",
-            "folderID",
-        ]);
+        const userLogOriginalData = transformEntityIntoASimpleObject(oldPost);
         await insertUserLog({
             userID,
             folderID: oldPost.getID(),
             originalData: userLogOriginalData
         });
 
-        const newPostData = transformEntityIntoASimpleObject(oldPost, [
-            "ID",
-            "userID",
-            "name",
-            "url",
-            "isDeleted",
-            "folderID",
-            "author"
-        ]);
+        const newPostData = transformEntityIntoASimpleObject(newPost);
         return Object.freeze(newPostData);
     }
 };

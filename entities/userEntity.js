@@ -7,10 +7,23 @@ const STATUS_MERGED = "merged";
 const STATUS_BANNED = "banned";
 const STATUS_DISABLED = "disabled";
 
+const AVAILABLE_STATUSES = [
+    STATUS_GUEST,
+    STATUS_AUTHORIZED,
+    STATUS_MERGED,
+    STATUS_BANNED,
+    STATUS_DISABLED
+];
+
 const DISABLED_STATUSES = [
     STATUS_MERGED,
     STATUS_BANNED,
     STATUS_DISABLED
+];
+
+const CHILDREN_STATUSES = [
+    STATUS_GUEST,
+    STATUS_MERGED
 ];
 
 const buildUserFactory = (
@@ -65,12 +78,12 @@ const buildUserFactory = (
             throw new Error(errorPrefix + "merged users need parent IDs.");
         }
 
-        if (!isWithin(status, [STATUS_GUEST, STATUS_AUTHORIZED, STATUS_MERGED, STATUS_BANNED, STATUS_DISABLED])) {
+        if (!isWithin(status, AVAILABLE_STATUSES)) {
             throw new Error(errorPrefix + "wrong status value.");
         }
 
         if (isDefined(parentID)) {
-            if (status !== STATUS_MERGED) {
+            if (!isWithin(status, CHILDREN_STATUSES)) {
                 throw new Error(errorPrefix + "parent ID should only be defined for merged users.");
             }
 

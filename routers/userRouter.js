@@ -17,6 +17,27 @@ const initiate = (app) => {
         type: "get",
         func: userController.authorize
     });
+
+    route.setRoute({
+        app,
+        path: "/getOwnUser",
+        type: "get",
+        func: userController.getOwnUser
+    });
+
+    route.setRoute({
+        app,
+        path: "/getUserByPassword",
+        type: "get",
+        func: userController.getUserByPassword
+    });
+
+    route.setRoute({
+        app,
+        path: "/addPasswordAuthorizationToUser",
+        type: "put",
+        func: userController.addPasswordAuthorizationToUser
+    });
 };
 
 module.exports = initiate;

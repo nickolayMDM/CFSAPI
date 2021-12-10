@@ -1,7 +1,7 @@
 const userLogEntity = require("../entities/userLogEntity");
 const folderEntity = require("../entities/folderEntity");
 
-const errorPrefix = "edit folder use case error: ";
+const errorPrefix = "delete folder use case error: ";
 
 let deleteFolderFactory = (
     {

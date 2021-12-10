@@ -43,7 +43,7 @@ const isEmptyArray = (value) => {
 };
 
 const isObject = (value) => {
-    return (isObjectType() && !Array.isArray(value));
+    return (isObjectType(value) && !Array.isArray(value) && value !== null);
 };
 
 const isPopulatedObject = (value) => {
@@ -78,8 +78,8 @@ const isJsonString = (value) => {
         if (object && typeof object === "object") {
             return true;
         }
+    } catch (e) {
     }
-    catch (e) { }
 
     return false;
 };
@@ -100,6 +100,10 @@ const isInt = (value) => {
     return Number.isInteger(value);
 };
 
+const isPositiveInt = (value) => {
+    return Number.isInteger(value) && value > 0;
+};
+
 const isTimestamp = (value) => {
     const newTimestamp = new Date(value).getTime();
     return isNumeric(newTimestamp);
@@ -117,6 +121,10 @@ const isString = (value) => {
     return typeof value === "string";
 };
 
+const isStringWithin = (value, min, max) => {
+    return typeof value === "string" && value.length >= min && value.length <= max;
+};
+
 const isOkStatus = (value) => {
     return (isInt(value) && value >= 200 && value < 300);
 };
@@ -125,4 +133,33 @@ const isBuffer = (value) => {
     return value instanceof Buffer;
 };
 
-module.exports = { isDefined, isCountryCode, isEmail, isIP, isPopulatedString, isArray, isObject, isObjectType, isNonNegativeInteger, isWithin, isNull, isPopulatedObject, isBoolean, isMD5Hash, isJsonString, isUrl, isInt, isTimestamp, isNumeric, isEmptyObject, isFunction, isEmptyArray, isString, isPopulatedArray, isOkStatus, isBuffer };
+module.exports = {
+    isDefined,
+    isCountryCode,
+    isEmail,
+    isIP,
+    isPopulatedString,
+    isArray,
+    isObject,
+    isObjectType,
+    isNonNegativeInteger,
+    isWithin,
+    isNull,
+    isPopulatedObject,
+    isBoolean,
+    isMD5Hash,
+    isJsonString,
+    isUrl,
+    isInt,
+    isTimestamp,
+    isNumeric,
+    isEmptyObject,
+    isFunction,
+    isEmptyArray,
+    isString,
+    isPopulatedArray,
+    isOkStatus,
+    isBuffer,
+    isPositiveInt,
+    isStringWithin
+};

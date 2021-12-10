@@ -1,11 +1,13 @@
 const { MongoClient, ObjectId } = require("mongodb");
 const config = require("../config");
 const validators = require("../helpers/validators");
-const textHelpers = require("../helpers/text");
 const objectHelpers = require("../helpers/object");
 const url = config.database.url;
 const databaseName = config.database.databaseName;
 const client = new MongoClient(url);
+
+let clientConnection;
+let databaseConnection;
 
 const _convertIDPropertyFromDatabase = (data) => {
     if (validators.isArray(data)) {
@@ -45,9 +47,57 @@ const _transformFilter = (filter) => {
     return filter;
 };
 
+const _countDocuments = async ({collectionData, filter}) => {
+    const databaseConnection = await getDatabaseConnection(databaseName);
+
+    let result = await databaseConnection.collection(collectionData.name).aggregate([
+        {
+            $match: filter
+        },
+        {
+            $count: "count"
+        }
+    ]).toArray();
+
+    return result;
+};
+
+const _countGrouped = async ({collectionData, filter, group}) => {
+    const databaseConnection = await getDatabaseConnection(databaseName);
+
+    let result = await databaseConnection.collection(collectionData.name).aggregate([
+        {
+            $match: filter
+        },
+        {
+            $group: {
+                _id: "$" + group,
+                count: {
+                    $sum: 1
+                }
+            }
+        }
+    ]).toArray();
+
+    return result;
+};
+
+const getDatabaseConnection = async (databaseName) => {
+    if (typeof clientConnection === "undefined") {
+        clientConnection = await client.connect();
+    }
+
+    if (typeof databaseConnection === "undefined") {
+        databaseConnection = clientConnection.db(databaseName);
+    }
+
+    return databaseConnection;
+};
+
 const databaseAdapter = {
     isID: (value) => {
-        return ObjectId.isValid(value);
+        const testOrigin = new RegExp("^[0-9a-fA-F]{24}$");
+        return testOrigin.test(value);
     },
     transformStringIDToObject: (value) => {
         return new ObjectId(value);
@@ -55,52 +105,53 @@ const databaseAdapter = {
     generateID: ({collectionName = ""} = {}) => {
         return ObjectId();
     },
-    findOne: async ({collectionData, filter}) => {
-        const clientConnection = await client.connect();
-        const databaseConnection = clientConnection.db(databaseName);
+    findOne: async ({collectionData, filter, sort = {}}) => {
+        const databaseConnection = await getDatabaseConnection(databaseName);
 
         filter = _transformFilter(filter);
 
-        //TODO: create a switch on-switch off adapter for console logging
-        let result = await databaseConnection.collection(collectionData.name).findOne(filter);
-        if (!validators.isNull(result) && typeof result._id !== "undefined") {
+        let result = databaseConnection.collection(collectionData.name).find(filter).limit(1);
+        if (validators.isPopulatedObject(sort)) {
+            result.sort(sort);
+        }
+        result = await result.toArray();
+        if (!validators.isNull(result) && validators.isPopulatedArray(result)) {
+            result = result[0];
             result = _convertIDPropertyFromDatabase(result);
+
+            return result;
         }
 
-        return result;
+        return null;
     },
-    findAll: async ({collectionData, filter}) => {
-        const clientConnection = await client.connect();
-        const databaseConnection = clientConnection.db(databaseName);
+    findAll: async ({collectionData, filter, sort = {}}) => {
+        const databaseConnection = await getDatabaseConnection(databaseName);
 
         filter = _transformFilter(filter);
 
-        let result = await databaseConnection.collection(collectionData.name).find(filter).toArray();
-        if (!validators.isNull(result) && typeof result._id !== "undefined") {
+        let result = databaseConnection.collection(collectionData.name).find(filter);
+        if (validators.isPopulatedObject(sort)) {
+            result.sort(sort);
+        }
+        result = await result.toArray();
+        if (!validators.isNull(result) && validators.isPopulatedArray(result)) {
             result = _convertIDPropertyFromDatabase(result);
         }
 
         return result;
     },
     insert: async ({collectionData, entityData, databaseConnection}) => {
-        let clientConnection;
         if (typeof databaseConnection === "undefined") {
-            clientConnection = await client.connect();
-            databaseConnection = clientConnection.db(databaseName);
+            databaseConnection = await getDatabaseConnection(databaseName);
         }
         if (typeof entityData._id === "undefined" && typeof entityData.ID !== "undefined") {
             entityData = _convertIDPropertyToDatabase(entityData);
         }
 
         await databaseConnection.collection(collectionData.name).insertOne(entityData);
-
-        if (typeof clientConnection !== "undefined") {
-            await clientConnection.close();
-        }
     },
     insertMultiple: async ({insertArray = []} = {}) => {
-        const clientConnection = await client.connect();
-        const databaseConnection = clientConnection.db(databaseName);
+        const databaseConnection = await getDatabaseConnection(databaseName);
 
         for (let key in insertArray) {
             if (!insertArray.hasOwnProperty(key)) continue;
@@ -111,8 +162,6 @@ const databaseAdapter = {
                 databaseConnection
             });
         }
-
-        await clientConnection.close();
     },
     insertEntity: async ({collectionData, entityData, databaseConnection}) => {
         let data = objectHelpers.transformEntityIntoASimpleObject(entityData);
@@ -124,8 +173,8 @@ const databaseAdapter = {
         });
     },
     update: async ({collectionData, ID, updateData, unsetData} = {}) => {
-        const clientConnection = await client.connect();
-        const databaseConnection = clientConnection.db(databaseName);
+        const databaseConnection = await getDatabaseConnection(databaseName);
+
         let update = {};
         if (typeof updateData !== "undefined") {
             update.$set = updateData;
@@ -135,18 +184,40 @@ const databaseAdapter = {
         }
 
         await databaseConnection.collection(collectionData.name).updateOne({_id: ID}, update);
-
-        await clientConnection.close();
     },
     updateEntity: async ({collectionData, entityData}) => {
         const ID = entityData.getID();
         let data = objectHelpers.transformEntityIntoASimpleObject(entityData);
+        delete data.ID;
 
         await databaseAdapter.update({
             collectionData,
             ID,
             updateData: data
         });
+    },
+    count: async ({collectionData, filter, group}) => {
+        let result;
+        filter = _transformFilter(filter);
+
+        if (typeof group !== "undefined") {
+            result = await _countGrouped({
+                collectionData,
+                filter,
+                group
+            });
+        } else {
+            result = await _countDocuments({
+                collectionData,
+                filter
+            });
+        }
+
+        if (!validators.isNull(result) && validators.isPopulatedArray(result)) {
+            result = _convertIDPropertyFromDatabase(result);
+        }
+
+        return result;
     },
 };
 

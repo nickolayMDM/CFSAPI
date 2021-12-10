@@ -36,6 +36,13 @@ const initiate = (app) => {
         type: "delete",
         func: folderController.remove
     });
+
+    route.setRoute({
+        app,
+        path: "/setFolderPin",
+        type: "put",
+        func: folderController.changePinStatus
+    });
 };
 
 module.exports = initiate;

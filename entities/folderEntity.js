@@ -17,14 +17,16 @@ const buildFolderFactory = (
             userID,
             name,
             parentID,
-            isDeleted = false
+            isDeleted = false,
+            isPinned = false
         } = {}
     ) => {
         let folderObject = {
             getID: () => ID,
             getUserID: () => userID,
             getName: () => name,
-            getIsDeleted: () => isDeleted
+            getIsDeleted: () => isDeleted,
+            getIsPinned: () => isPinned
         };
 
         if (!isID(ID)) {
@@ -49,6 +51,10 @@ const buildFolderFactory = (
 
         if (!isBoolean(isDeleted)) {
             throw new Error(errorPrefix + "is deleted value has to be a boolean.");
+        }
+
+        if (!isBoolean(isPinned)) {
+            throw new Error(errorPrefix + "is pinned value has to be a boolean.");
         }
 
         return Object.freeze(folderObject);

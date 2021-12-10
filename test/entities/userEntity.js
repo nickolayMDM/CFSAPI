@@ -208,7 +208,7 @@ const userTest = ({
             buildEntity: buildUser,
             testName: "should get active as true from entity",
             expectedData: true,
-            getFunctionName: "isActive",
+            getFunctionName: "getIsActive",
             buildParameters: {
                 ...fullBuildParameters,
                 status: userStatuses.STATUS_AUTHORIZED,
@@ -220,7 +220,7 @@ const userTest = ({
             buildEntity: buildUser,
             testName: "should get active as false from entity",
             expectedData: false,
-            getFunctionName: "isActive",
+            getFunctionName: "getIsActive",
             buildParameters: fullBuildParameters
         });
 
@@ -229,7 +229,7 @@ const userTest = ({
             buildEntity: buildUser,
             testName: "should get merged as false from entity",
             expectedData: false,
-            getFunctionName: "isMerged",
+            getFunctionName: "getIsMerged",
             buildParameters: {
                 ...fullBuildParameters,
                 status: userStatuses.STATUS_GUEST,
@@ -241,7 +241,7 @@ const userTest = ({
             buildEntity: buildUser,
             testName: "should get merged as true from entity",
             expectedData: true,
-            getFunctionName: "isMerged",
+            getFunctionName: "getIsMerged",
             buildParameters: fullBuildParameters
         });
 

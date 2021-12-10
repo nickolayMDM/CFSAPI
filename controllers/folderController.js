@@ -1,11 +1,14 @@
 const database = require("../adapters/databaseAdapter");
 const validators = require("../helpers/validators");
 const objectHelpers = require("../helpers/object");
+const numberHelpers = require("../helpers/number");
+const debug = require("../adapters/debugAdapter");
 const getFolderContentsUseCaseFactory = require("../useCases/getFolderContents");
 const addFolderUseCaseFactory = require("../useCases/addFolder");
 const renameFolderUseCaseFactory = require("../useCases/renameFolder");
 const moveFolderUseCaseFactory = require("../useCases/moveFolder");
 const deleteFolderUseCaseFactory = require("../useCases/deleteFolder");
+const changeFolderPinStatusUseCaseFactory = require("../useCases/changeFolderPinStatus");
 
 const getContents = async (req, res) => {
     const folderID = req.query.folder;
@@ -20,23 +23,25 @@ const getContents = async (req, res) => {
         isTimestamp: validators.isTimestamp,
         isBoolean: validators.isBoolean,
         isNull: validators.isNull,
+        isPositiveInt: validators.isPositiveInt,
         generateDatabaseID: database.generateID,
         findAllFromDatabase: database.findAll,
         findOneFromDatabase: database.findOne,
+        countInDatabase: database.count,
         insertIntoDatabase: database.insert,
         transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
     });
+
     try {
         contents = await getFolderContentsUseCase({
             userID: sessionUserID,
             folderID
         });
-    } catch (e) {
-        let errorStatus = 500;
-        if (e instanceof TypeError) {
-            errorStatus = 400;
-        }
-        return res.status(errorStatus).json({error: e.message});
+    } catch (error) {
+        return await debug.returnServerError({
+            res,
+            error
+        });
     }
 
     return res.status(200).json(contents);
@@ -75,14 +80,12 @@ const post = async (req, res) => {
             name,
             parentID
         });
-    } catch (e) {
-        let errorStatus = 500;
-        if (e instanceof TypeError) {
-            errorStatus = 400;
-        }
-        return res.status(errorStatus).json({error: e.message});
+    } catch (error) {
+        return await debug.returnServerError({
+            res,
+            error
+        });
     }
-
 
     return res.status(200).json(folder);
 };
@@ -91,7 +94,7 @@ const rename = async (req, res) => {
     const name = req.body.name;
     const folderIDString = req.body.folder;
     const sessionUserID = req.currentUserID;
-    let folderID;
+    let folderID, folder;
 
     if (database.isID(folderIDString)) {
         folderID = database.transformStringIDToObject(folderIDString);
@@ -111,11 +114,19 @@ const rename = async (req, res) => {
         updateEntityInDatabase: database.updateEntity,
         transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
     });
-    const folder = await renameFolderUseCase({
-        userID: sessionUserID,
-        name,
-        folderID
-    });
+
+    try {
+        folder = await renameFolderUseCase({
+            userID: sessionUserID,
+            name,
+            folderID
+        });
+    } catch (error) {
+        return await debug.returnServerError({
+            res,
+            error
+        });
+    }
 
     return res.status(200).json(folder);
 };
@@ -124,7 +135,7 @@ const move = async (req, res) => {
     const parentIDString = req.body.parent;
     const folderIDString = req.body.folder;
     const sessionUserID = req.currentUserID;
-    let folderID, parentID;
+    let folderID, parentID, folder;
 
     if (database.isID(folderIDString)) {
         folderID = database.transformStringIDToObject(folderIDString);
@@ -147,11 +158,19 @@ const move = async (req, res) => {
         updateInDatabase: database.update,
         transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
     });
-    const folder = await moveFolderUseCase({
-        userID: sessionUserID,
-        parentID,
-        folderID
-    });
+
+    try {
+        folder = await moveFolderUseCase({
+            userID: sessionUserID,
+            parentID,
+            folderID
+        });
+    } catch (error) {
+        return await debug.returnServerError({
+            res,
+            error
+        });
+    }
 
     return res.status(200).json(folder);
 };
@@ -159,7 +178,7 @@ const move = async (req, res) => {
 const remove = async (req, res) => {
     const folderIDString = req.body.folder;
     const sessionUserID = req.currentUserID;
-    let folderID;
+    let folderID, folder;
 
     if (database.isID(folderIDString)) {
         folderID = database.transformStringIDToObject(folderIDString);
@@ -179,12 +198,64 @@ const remove = async (req, res) => {
         isTimestamp: validators.isTimestamp,
         transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
     });
-    const folder = await deleteFolderUseCase({
-        userID: sessionUserID,
-        folderID
-    });
+
+    try {
+        folder = await deleteFolderUseCase({
+            userID: sessionUserID,
+            folderID
+        });
+    } catch (error) {
+        return await debug.returnServerError({
+            res,
+            error
+        });
+    }
 
     return res.status(200).json(folder);
 };
 
-module.exports = { getContents, post, rename, move, remove };
+const changePinStatus = async (req, res) => {
+    const isPinned = req.body.pin;
+    const folderIDString = req.body.folder;
+    const sessionUserID = req.currentUserID;
+    let folderID, post;
+
+    if (database.isID(folderIDString)) {
+        folderID = database.transformStringIDToObject(folderIDString);
+    }
+
+    const changeFolderPinStatusUseCase = changeFolderPinStatusUseCaseFactory({
+        isDefined: validators.isDefined,
+        isID: database.isID,
+        isPopulatedString: validators.isPopulatedString,
+        isNull: validators.isNull,
+        isBoolean: validators.isBoolean,
+        isJsonString: validators.isJsonString,
+        isUrl: validators.isUrl,
+        isString: validators.isString,
+        findOneFromDatabase: database.findOne,
+        updateInDatabase: database.update,
+        insertEntityIntoDatabase: database.insertEntity,
+        generateDatabaseID: database.generateID,
+        isPopulatedObject: validators.isPopulatedObject,
+        isTimestamp: validators.isTimestamp,
+        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
+    });
+
+    try {
+        post = await changeFolderPinStatusUseCase({
+            userID: sessionUserID,
+            folderID,
+            isPinned: numberHelpers.transformNumberToBoolean(isPinned)
+        });
+    } catch (error) {
+        return await debug.returnServerError({
+            res,
+            error
+        });
+    }
+
+    return res.status(200).json(post);
+};
+
+module.exports = {getContents, post, rename, move, remove, changePinStatus};

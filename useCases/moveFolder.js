@@ -158,26 +158,14 @@ let moveFolderFactory = (
             folderCollectionData
         });
 
-        const userLogOriginalData = transformEntityIntoASimpleObject(oldFolder, [
-            "ID",
-            "userID",
-            "name",
-            "isDeleted",
-            "parentID"
-        ]);
+        const userLogOriginalData = transformEntityIntoASimpleObject(oldFolder);
         await insertUserLog({
             userID,
             folderID: oldFolder.getID(),
             originalData: userLogOriginalData
         });
 
-        const newFolderData = transformEntityIntoASimpleObject(newFolder, [
-            "ID",
-            "userID",
-            "name",
-            "isDeleted",
-            "parentID"
-        ]);
+        const newFolderData = transformEntityIntoASimpleObject(newFolder);
         return Object.freeze(newFolderData);
     }
 };

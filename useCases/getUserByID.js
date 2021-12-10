@@ -1,4 +1,5 @@
 const userEntity = require("../entities/userEntity");
+const userLogEntity = require("../entities/userLogEntity");
 
 let getUserByIDFactory = (
     {

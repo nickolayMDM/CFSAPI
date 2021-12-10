@@ -1,16 +1,15 @@
 const userLogEntity = require("../entities/userLogEntity");
 const postEntity = require("../entities/postEntity");
 
-const errorPrefix = "rename post use case error: ";
+const errorPrefix = "set post note use case error: ";
 
-let renamePostFactory = (
+let setPostNoteFactory = (
     {
         isDefined,
         isID,
         isPopulatedString,
         isPopulatedObject,
         isTimestamp,
-        isNull,
         isBoolean,
         isJsonString,
         isUrl,
@@ -38,7 +37,7 @@ let renamePostFactory = (
         const userLog = buildUserLog({
             ID: userLogID,
             userID,
-            description: "Renamed a post item",
+            description: "Changed a post item note",
             additional: {
                 originalData,
                 postID
@@ -51,9 +50,9 @@ let renamePostFactory = (
         });
     };
 
-    const renamePost = async ({oldPost, name, postCollectionData}) => {
+    const setPostNote = async ({oldPost, note, postCollectionData}) => {
         let postData = transformEntityIntoASimpleObject(oldPost);
-        postData.name = name;
+        postData.note = note;
 
         const buildPost = postEntity.buildPostFactory({
             isDefined,
@@ -99,7 +98,7 @@ let renamePostFactory = (
 
     return async (
         {
-            name,
+            note,
             userID,
             postID
         } = {}
@@ -107,7 +106,7 @@ let renamePostFactory = (
         if (
             !isID(userID)
             || !isID(postID)
-            || !isPopulatedString(name)
+            || !isString(note)
         ) {
             throw new Error(errorPrefix + "invalid data passed");
         }
@@ -118,24 +117,9 @@ let renamePostFactory = (
             postCollectionData
         });
 
-        const existingPostFilter = {
-            userID,
-            name
-        };
-        if (typeof oldPost.getFolderID === "function") {
-            existingPostFilter.folderID = oldPost.getFolderID();
-        }
-        const existingPost = await findOneFromDatabase({
-            collectionData: postCollectionData,
-            filter: existingPostFilter
-        });
-        if (!isNull(existingPost)) {
-            throw new Error(errorPrefix + "post with this name already exists");
-        }
-
-        const newPost = await renamePost({
+        const newPost = await setPostNote({
             oldPost,
-            name,
+            note,
             postCollectionData
         });
 
@@ -151,4 +135,4 @@ let renamePostFactory = (
     }
 };
 
-module.exports = renamePostFactory;
+module.exports = setPostNoteFactory;

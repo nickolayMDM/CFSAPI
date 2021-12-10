@@ -1,10 +1,11 @@
 const test = require("../adapters/testAdapter");
 const userCookieGenerator = require("../adapters/userCookieGeneratorAdapter");
 const validators = require("../helpers/validators");
+const objectHelpers = require("../helpers/object");
 const database = require("../adapters/databaseAdapter");
 
 const folders = [
-    "entities",
+    // "entities",
     "useCases"
 ];
 
@@ -30,13 +31,16 @@ for (let key in folders) {
         isPopulatedString: validators.isPopulatedString,
         isPopulatedObject: validators.isPopulatedObject,
         isBoolean: validators.isBoolean,
+        isNull: validators.isNull,
         isMD5Hash: validators.isMD5Hash,
         isJsonString: validators.isJsonString,
         isUrl: validators.isUrl,
         isInt: validators.isInt,
         isTimestamp: validators.isTimestamp,
+        isObject: validators.isObject,
         isCookie: userCookieGenerator.isCookie,
         generateDatabaseID: database.generateID,
         generateUserCookie: userCookieGenerator.generateUserCookie,
+        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
     });
 }

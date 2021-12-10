@@ -15,9 +15,13 @@ const getFolderContentsUseCaseTest = (
         isPopulatedString,
         isPopulatedObject,
         isTimestamp,
+        isBoolean,
+        isNull,
         insertIntoDatabase,
         generateDatabaseID,
-        findAllFromDatabase
+        findAllFromDatabase,
+        findOneFromDatabase,
+        transformEntityIntoASimpleObject
     }
 ) => {
     testDescribe("Get folder contents use case test", () => {
@@ -27,38 +31,46 @@ const getFolderContentsUseCaseTest = (
             isPopulatedString,
             isPopulatedObject,
             isTimestamp,
+            isBoolean,
+            isNull,
             generateDatabaseID,
             findAllFromDatabase,
-            insertIntoDatabase
+            findOneFromDatabase,
+            insertIntoDatabase,
+            transformEntityIntoASimpleObject
         });
         const userCollectionData = userEntity.getCollectionData();
         const folderCollectionData = folderEntity.getCollectionData();
         const postCollectionData = postEntity.getCollectionData();
         const user = {
-            ID: generateDatabaseID({collectionData: userCollectionData}),
+            ID: generateDatabaseID({collectionName: userCollectionData.name}),
             name: "Bob",
             email: "bobsemail@fake.mail",
             status: "guest"
         };
         const folder = {
-            ID: generateDatabaseID({collectionData: folderCollectionData}),
+            ID: generateDatabaseID({collectionName: folderCollectionData.name}),
             userID: user.ID,
-            name: "Bob's folder"
+            name: "Bob's folder",
+            isDeleted: false
         };
         const otherFolder = {
-            ID: generateDatabaseID({collectionData: folderCollectionData}),
+            ID: generateDatabaseID({collectionName: folderCollectionData.name}),
             userID: user.ID,
-            name: "Bob's other folder"
+            name: "Bob's other folder",
+            isDeleted: false
         };
         const post = {
-            ID: generateDatabaseID({collectionData: postCollectionData}),
+            ID: generateDatabaseID({collectionName: postCollectionData.name}),
             userID: user.ID,
-            folderID: folder.ID
+            folderID: folder.ID,
+            isDeleted: false
         };
         const otherFolderPost = {
-            ID: generateDatabaseID({collectionData: postCollectionData}),
+            ID: generateDatabaseID({collectionName: postCollectionData.name}),
             userID: user.ID,
-            folderID: otherFolder.ID
+            folderID: otherFolder.ID,
+            isDeleted: false
         };
 
         let rootContents, folderContents;

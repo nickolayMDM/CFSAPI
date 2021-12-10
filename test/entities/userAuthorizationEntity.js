@@ -155,7 +155,7 @@ const userAuthorizationTest = (
             buildEntity: buildUserAuthorization,
             testName: "should get is active boolean entity",
             expectedData: passwordBuildParameters.isActive,
-            getFunctionName: "isActive",
+            getFunctionName: "getIsActive",
             buildParameters: passwordBuildParameters
         });
 

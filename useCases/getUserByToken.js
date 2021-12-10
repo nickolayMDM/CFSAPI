@@ -1,28 +1,33 @@
 const userEntity = require("../entities/userEntity");
+const userAuthorizationEntity = require("../entities/userAuthorizationEntity");
 const userLogEntity = require("../entities/userLogEntity");
 
-let getUserByCookieFactory = (
+let getUserByTokenFactory = (
     {
         isDefined,
         isEmail,
         isWithin,
         isID,
         isNull,
-        generateUserCookie,
         generateDatabaseID,
         findOneFromDatabase,
         isPopulatedString,
         isPopulatedObject,
         isTimestamp,
-        insertEntityIntoDatabase
+        isBoolean,
+        isHash,
+        isPopulatedArray,
+        insertEntityIntoDatabase,
+        generateUserCookie,
+        transformEntityIntoASimpleObject
     }
 ) => {
-    const insertUserLog = async ({userID, realCookieValue, cookieValue, deviceValue, IP}) => {
+    const insertUserLog = async ({userID, token, deviceValue, IP}) => {
         const userLogCollectionData = userLogEntity.getCollectionData();
         const userLogID = generateDatabaseID({
             collectionData: userLogCollectionData
         });
-        const userLogDescription = "User login by cookie attempt";
+        const userLogDescription = "User login by authorization attempt";
         const buildUserLog = userLogEntity.buildUserLogFactory({
             isDefined,
             isID,
@@ -35,8 +40,7 @@ let getUserByCookieFactory = (
             userID,
             description: userLogDescription,
             additional: {
-                realCookieValue,
-                cookieValue,
+                token,
                 deviceValue,
                 IP
             }
@@ -49,32 +53,41 @@ let getUserByCookieFactory = (
 
     return async (
         {
-            userID,
-            cookieValue,
+            variant,
+            token,
             deviceValue,
             IP
         }
     ) => {
-        const realCookieValue = await generateUserCookie({
-            deviceValue,
-            IP,
-            userID
+        const userAuthorizationData = await findOneFromDatabase({
+            collectionData: userAuthorizationEntity.getCollectionData(),
+            filter: {
+                variant,
+                token
+            }
         });
-
-        if (realCookieValue !== cookieValue) {
-            //TODO: remove
-            console.log(realCookieValue, cookieValue);
-            throw new Error("cookie value does not match the provided data");
+        if (isNull(userAuthorizationData)) {
+            throw new Error("user authorization method not found");
         }
+
+        const buildUserAuthorization = userAuthorizationEntity.buildUserAuthorizationFactory({
+            isID,
+            isPopulatedString,
+            isBoolean,
+            isWithin,
+            isHash,
+            isPopulatedArray
+        });
+        const userAuthorization = buildUserAuthorization(userAuthorizationData);
 
         const userData = await findOneFromDatabase({
             collectionData: userEntity.getCollectionData(),
             filter: {
-                ID: userID
+                ID: userAuthorization.getUserID()
             }
         });
         if (isNull(userData)) {
-            throw new Error("user was not found in the database");
+            throw new Error("user not found");
         }
 
         const buildUser = userEntity.buildUserFactory({
@@ -86,15 +99,26 @@ let getUserByCookieFactory = (
         const user = buildUser(userData);
 
         await insertUserLog({
-            userID,
-            realCookieValue,
-            cookieValue,
+            userID: user.getID(),
+            token,
             deviceValue,
             IP
         });
 
-        return user;
+        let resultData = transformEntityIntoASimpleObject(user, [
+            "name",
+            "email",
+            "status"
+        ]);
+        const cookie = await generateUserCookie({
+            deviceValue,
+            IP,
+            userID: user.getID()
+        });
+        resultData.cookie = cookie;
+
+        return resultData;
     }
 };
 
-module.exports = getUserByCookieFactory;
+module.exports = getUserByTokenFactory;

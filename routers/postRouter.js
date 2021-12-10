@@ -36,6 +36,20 @@ const initiate = (app) => {
         type: "delete",
         func: postController.remove
     });
+
+    route.setRoute({
+        app,
+        path: "/setPostPin",
+        type: "put",
+        func: postController.changePinStatus
+    });
+
+    route.setRoute({
+        app,
+        path: "/setPostNote",
+        type: "put",
+        func: postController.setNote
+    });
 };
 
 module.exports = initiate;

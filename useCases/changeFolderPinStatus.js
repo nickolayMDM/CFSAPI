@@ -1,9 +1,9 @@
 const userLogEntity = require("../entities/userLogEntity");
 const folderEntity = require("../entities/folderEntity");
 
-const errorPrefix = "rename folder use case error: ";
+const errorPrefix = "change folder pin use case error: ";
 
-let renameFolderFactory = (
+let changeFolderPinFactory = (
     {
         isDefined,
         isID,
@@ -12,14 +12,17 @@ let renameFolderFactory = (
         isTimestamp,
         isNull,
         isBoolean,
+        isJsonString,
+        isUrl,
+        isString,
         generateDatabaseID,
         findOneFromDatabase,
         insertEntityIntoDatabase,
-        updateEntityInDatabase,
+        updateInDatabase,
         transformEntityIntoASimpleObject
     }
 ) => {
-    const insertUserLog = async ({userID, folderID, originalData}) => {
+    const insertUserLog = async ({userID, folderID, originalData, isPinned}) => {
         const userLogCollectionData = userLogEntity.getCollectionData();
         const userLogID = generateDatabaseID({
             collectionName: userLogCollectionData.name
@@ -34,9 +37,10 @@ let renameFolderFactory = (
         const userLog = buildUserLog({
             ID: userLogID,
             userID,
-            description: "Renamed a folder",
+            description: "Set a folder pin status",
             additional: {
                 originalData,
+                isPinned,
                 folderID
             }
         });
@@ -47,26 +51,30 @@ let renameFolderFactory = (
         });
     };
 
-    const renameFolder = async ({oldFolder, name, folderCollectionData}) => {
-        let folderData = transformEntityIntoASimpleObject(oldFolder, [
-            "ID",
-            "userID",
-            "isDeleted",
-            "parentID"
-        ]);
-        folderData.name = name;
-
+    const changeFolderPinStatus = async ({oldFolder, isPinned, folderCollectionData}) => {
         const buildFolder = folderEntity.buildFolderFactory({
             isDefined,
             isID,
             isPopulatedString,
-            isBoolean
+            isBoolean,
+            isJsonString,
+            isUrl,
+            isString
         });
+
+        const folderData = transformEntityIntoASimpleObject(oldFolder);
+
+        if (isBoolean(isPinned)) {
+            folderData.isPinned = isPinned;
+        }
         const folder = buildFolder(folderData);
 
-        await updateEntityInDatabase({
+        await updateInDatabase({
             collectionData: folderCollectionData,
-            entityData: folder
+            ID: folder.getID(),
+            updateData: {
+                isPinned: folder.getIsPinned()
+            }
         });
 
         return folder;
@@ -80,76 +88,61 @@ let renameFolderFactory = (
                 userID
             }
         });
-        const buildFolder = folderEntity.buildFolderFactory({
+        const buildPost = folderEntity.buildFolderFactory({
             isDefined,
             isID,
             isPopulatedString,
-            isBoolean
+            isBoolean,
+            isJsonString,
+            isUrl,
+            isString
         });
 
-        return buildFolder(folderData);
+        return buildPost(folderData);
     };
 
     return async (
         {
-            name,
             userID,
-            folderID
+            folderID,
+            isPinned
         } = {}
     ) => {
         if (
             !isID(userID)
             || !isID(folderID)
-            || !isPopulatedString(name)
+            || !isBoolean(isPinned)
         ) {
             throw new Error(errorPrefix + "invalid data passed");
         }
+
         const folderCollectionData = folderEntity.getCollectionData();
+
         const oldFolder = await getFolderFromDatabase({
             userID,
             folderID,
             folderCollectionData
         });
-
-        const existingFolder = await findOneFromDatabase({
-            collectionData: folderCollectionData,
-            filter: {
-                userID,
-                name
-            }
-        });
-        if (!isNull(existingFolder)) {
-            throw new Error(errorPrefix + "folder with this name already exists");
+        if (isNull(oldFolder)) {
+            throw new TypeError(errorPrefix + "folder not found");
         }
 
-        const newFolder = await renameFolder({
+        const newFolder = await changeFolderPinStatus({
             oldFolder,
-            name,
+            isPinned,
             folderCollectionData
         });
 
-        const userLogOriginalData = transformEntityIntoASimpleObject(oldFolder, [
-            "ID",
-            "userID",
-            "name",
-            "isDeleted",
-            "parentID",
-        ]);
+        const userLogOriginalData = transformEntityIntoASimpleObject(oldFolder);
         await insertUserLog({
             userID,
             folderID: oldFolder.getID(),
             originalData: userLogOriginalData
         });
 
-        const newFolderData = transformEntityIntoASimpleObject(oldFolder, [
-            "ID",
-            "userID",
-            "name",
-            "isDeleted",
-            "parentID",
-        ]);
+        const newFolderData = transformEntityIntoASimpleObject(newFolder);
         return Object.freeze(newFolderData);
     }
 };
 
-module.exports = renameFolderFactory;
+module.exports = changeFolderPinFactory;

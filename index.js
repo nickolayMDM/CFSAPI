@@ -1,9 +1,19 @@
 const express = require("express");
 const session = require("./adapters/sessionAdapter");
+const database = require("./adapters/databaseAdapter");
+const debug = require("./adapters/debugAdapter");
+const validators = require("./helpers/validators");
 const initializeRoutes = require("./routers");
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const config = require("./config");
+const serverLogEntity = require("./entities/serverLogEntity");
+
+debug.initialize({
+    databaseAdapter: database,
+    serverLogEntity: serverLogEntity,
+    validators: validators
+});
 
 const app = express();
 const port = config.port;

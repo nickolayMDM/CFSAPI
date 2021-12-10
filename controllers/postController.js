@@ -1,10 +1,14 @@
 const database = require("../adapters/databaseAdapter");
 const validators = require("../helpers/validators");
 const objectHelpers = require("../helpers/object");
+const numberHelpers = require("../helpers/number");
+const debug = require("../adapters/debugAdapter");
 const addPostUseCaseFactory = require("../useCases/addPost");
 const renamePostUseCaseFactory = require("../useCases/renamePost");
 const movePostUseCaseFactory = require("../useCases/movePost");
 const deletePostUseCaseFactory = require("../useCases/deletePost");
+const changePostPinStatusUseCaseFactory = require("../useCases/changePostPinStatus");
+const setPostNoteUseCaseFactory = require("../useCases/setPostNote");
 const managerConnector = require("../adapters/managerConnectorAdapter");
 const imageFileAdapter = require("../adapters/fileAdapters/imageFileAdapter");
 
@@ -39,7 +43,7 @@ const add = async (req, res) => {
     let folderIDString = req.body.folder;
     let folderID, post;
 
-    if (typeof folderIDString === "object") {
+    if (validators.isObject(folderIDString)) {
         folderIDString = folderIDString._id;
     }
     if (database.isID(folderIDString)) {
@@ -57,6 +61,7 @@ const add = async (req, res) => {
         isJsonString: validators.isJsonString,
         isUrl: validators.isUrl,
         isString: validators.isString,
+        isStringWithin: validators.isStringWithin,
         generateDatabaseID: database.generateID,
         findOneFromDatabase: database.findOne,
         insertEntityIntoDatabase: database.insertEntity,
@@ -73,12 +78,11 @@ const add = async (req, res) => {
             name,
             folderID
         });
-    } catch (e) {
-        let errorStatus = 500;
-        if (e instanceof TypeError) {
-            errorStatus = 400;
-        }
-        return res.status(errorStatus).json({error: e.message});
+    } catch (error) {
+        return await debug.returnServerError({
+            res,
+            error
+        });
     }
 
 
@@ -89,7 +93,7 @@ const rename = async (req, res) => {
     const name = req.body.name;
     const postIDString = req.body.post;
     const sessionUserID = req.currentUserID;
-    let postID;
+    let postID, post;
 
     if (database.isID(postIDString)) {
         postID = database.transformStringIDToObject(postIDString);
@@ -105,17 +109,27 @@ const rename = async (req, res) => {
         isBoolean: validators.isBoolean,
         isJsonString: validators.isJsonString,
         isUrl: validators.isUrl,
+        isString: validators.isString,
+        isStringWithin: validators.isStringWithin,
         generateDatabaseID: database.generateID,
         findOneFromDatabase: database.findOne,
         insertEntityIntoDatabase: database.insertEntity,
         updateEntityInDatabase: database.updateEntity,
         transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
     });
-    const post = await renamePostUseCase({
-        userID: sessionUserID,
-        name,
-        postID
-    });
+
+    try {
+        post = await renamePostUseCase({
+            userID: sessionUserID,
+            name,
+            postID
+        });
+    } catch (error) {
+        return await debug.returnServerError({
+            res,
+            error
+        });
+    }
 
     return res.status(200).json(post);
 };
@@ -124,7 +138,7 @@ const move = async (req, res) => {
     const postIDString = req.body.post;
     const folderIDString = req.body.folder;
     const sessionUserID = req.currentUserID;
-    let postID, folderID;
+    let postID, folderID, post;
 
     if (database.isID(postIDString)) {
         postID = database.transformStringIDToObject(postIDString);
@@ -143,17 +157,27 @@ const move = async (req, res) => {
         isBoolean: validators.isBoolean,
         isJsonString: validators.isJsonString,
         isUrl: validators.isUrl,
+        isString: validators.isString,
+        isStringWithin: validators.isStringWithin,
         generateDatabaseID: database.generateID,
         findOneFromDatabase: database.findOne,
         insertEntityIntoDatabase: database.insertEntity,
         updateInDatabase: database.update,
         transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
     });
-    const post = await movePostUseCase({
-        userID: sessionUserID,
-        postID,
-        folderID
-    });
+
+    try {
+        post = await movePostUseCase({
+            userID: sessionUserID,
+            postID,
+            folderID
+        });
+    } catch (error) {
+        return await debug.returnServerError({
+            res,
+            error
+        });
+    }
 
     return res.status(200).json(post);
 };
@@ -161,7 +185,7 @@ const move = async (req, res) => {
 const remove = async (req, res) => {
     const postIDString = req.body.post;
     const sessionUserID = req.currentUserID;
-    let postID;
+    let postID, post;
 
     if (database.isID(postIDString)) {
         postID = database.transformStringIDToObject(postIDString);
@@ -175,6 +199,8 @@ const remove = async (req, res) => {
         isBoolean: validators.isBoolean,
         isJsonString: validators.isJsonString,
         isUrl: validators.isUrl,
+        isString: validators.isString,
+        isStringWithin: validators.isStringWithin,
         findOneFromDatabase: database.findOne,
         updateInDatabase: database.update,
         insertEntityIntoDatabase: database.insertEntity,
@@ -183,12 +209,109 @@ const remove = async (req, res) => {
         isTimestamp: validators.isTimestamp,
         transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
     });
-    const post = await deletePostUseCase({
-        userID: sessionUserID,
-        postID
-    });
+
+    try {
+        post = await deletePostUseCase({
+            userID: sessionUserID,
+            postID
+        });
+    } catch (error) {
+        return await debug.returnServerError({
+            res,
+            error
+        });
+    }
 
     return res.status(200).json(post);
 };
 
-module.exports = { getInputDetails, add, rename, move, remove };
+const changePinStatus = async (req, res) => {
+    const isPinned = req.body.pin;
+    const postIDString = req.body.post;
+    const sessionUserID = req.currentUserID;
+    let postID, post;
+
+    if (database.isID(postIDString)) {
+        postID = database.transformStringIDToObject(postIDString);
+    }
+
+    const changePostPinStatusUseCase = changePostPinStatusUseCaseFactory({
+        isDefined: validators.isDefined,
+        isID: database.isID,
+        isPopulatedString: validators.isPopulatedString,
+        isNull: validators.isNull,
+        isBoolean: validators.isBoolean,
+        isJsonString: validators.isJsonString,
+        isUrl: validators.isUrl,
+        isString: validators.isString,
+        isStringWithin: validators.isStringWithin,
+        findOneFromDatabase: database.findOne,
+        updateInDatabase: database.update,
+        insertEntityIntoDatabase: database.insertEntity,
+        generateDatabaseID: database.generateID,
+        isPopulatedObject: validators.isPopulatedObject,
+        isTimestamp: validators.isTimestamp,
+        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
+    });
+
+    try {
+        post = await changePostPinStatusUseCase({
+            userID: sessionUserID,
+            postID,
+            isPinned: numberHelpers.transformNumberToBoolean(isPinned)
+        });
+    } catch (error) {
+        return await debug.returnServerError({
+            res,
+            error
+        });
+    }
+
+    return res.status(200).json(post);
+};
+
+const setNote = async (req, res) => {
+    const note = req.body.note;
+    const postIDString = req.body.post;
+    const sessionUserID = req.currentUserID;
+    let postID, post;
+
+    if (database.isID(postIDString)) {
+        postID = database.transformStringIDToObject(postIDString);
+    }
+
+    const setPostNoteUseCase = setPostNoteUseCaseFactory({
+        isDefined: validators.isDefined,
+        isID: database.isID,
+        isPopulatedString: validators.isPopulatedString,
+        isPopulatedObject: validators.isPopulatedObject,
+        isTimestamp: validators.isTimestamp,
+        isBoolean: validators.isBoolean,
+        isJsonString: validators.isJsonString,
+        isUrl: validators.isUrl,
+        isString: validators.isString,
+        isStringWithin: validators.isStringWithin,
+        generateDatabaseID: database.generateID,
+        findOneFromDatabase: database.findOne,
+        insertEntityIntoDatabase: database.insertEntity,
+        updateEntityInDatabase: database.updateEntity,
+        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
+    });
+
+    try {
+        post = await setPostNoteUseCase({
+            userID: sessionUserID,
+            note,
+            postID
+        });
+    } catch (error) {
+        return await debug.returnServerError({
+            res,
+            error
+        });
+    }
+
+    return res.status(200).json(post);
+};
+
+module.exports = {getInputDetails, add, rename, move, remove, changePinStatus, setNote};

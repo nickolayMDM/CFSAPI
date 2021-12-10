@@ -1,9 +1,9 @@
 const userLogEntity = require("../entities/userLogEntity");
 const postEntity = require("../entities/postEntity");
 
-const errorPrefix = "rename post use case error: ";
+const errorPrefix = "change post pin use case error: ";
 
-let renamePostFactory = (
+let changePostPinFactory = (
     {
         isDefined,
         isID,
@@ -19,11 +19,11 @@ let renamePostFactory = (
         generateDatabaseID,
         findOneFromDatabase,
         insertEntityIntoDatabase,
-        updateEntityInDatabase,
+        updateInDatabase,
         transformEntityIntoASimpleObject
     }
 ) => {
-    const insertUserLog = async ({userID, postID, originalData}) => {
+    const insertUserLog = async ({userID, postID, originalData, isPinned}) => {
         const userLogCollectionData = userLogEntity.getCollectionData();
         const userLogID = generateDatabaseID({
             collectionName: userLogCollectionData.name
@@ -38,9 +38,10 @@ let renamePostFactory = (
         const userLog = buildUserLog({
             ID: userLogID,
             userID,
-            description: "Renamed a post item",
+            description: "Set a post item pin status",
             additional: {
                 originalData,
+                isPinned,
                 postID
             }
         });
@@ -51,10 +52,7 @@ let renamePostFactory = (
         });
     };
 
-    const renamePost = async ({oldPost, name, postCollectionData}) => {
-        let postData = transformEntityIntoASimpleObject(oldPost);
-        postData.name = name;
-
+    const changePostPinStatus = async ({oldPost, isPinned, postCollectionData}) => {
         const buildPost = postEntity.buildPostFactory({
             isDefined,
             isID,
@@ -65,11 +63,20 @@ let renamePostFactory = (
             isString,
             isStringWithin
         });
+
+        const postData = transformEntityIntoASimpleObject(oldPost);
+
+        if (isBoolean(isPinned)) {
+            postData.isPinned = isPinned;
+        }
         const post = buildPost(postData);
 
-        await updateEntityInDatabase({
+        await updateInDatabase({
             collectionData: postCollectionData,
-            entityData: post
+            ID: post.getID(),
+            updateData: {
+                isPinned: post.getIsPinned()
+            }
         });
 
         return post;
@@ -99,50 +106,40 @@ let renamePostFactory = (
 
     return async (
         {
-            name,
             userID,
-            postID
+            postID,
+            isPinned
         } = {}
     ) => {
         if (
             !isID(userID)
             || !isID(postID)
-            || !isPopulatedString(name)
+            || !isBoolean(isPinned)
         ) {
             throw new Error(errorPrefix + "invalid data passed");
         }
+
         const postCollectionData = postEntity.getCollectionData();
+
         const oldPost = await getPostFromDatabase({
             userID,
             postID,
             postCollectionData
         });
-
-        const existingPostFilter = {
-            userID,
-            name
-        };
-        if (typeof oldPost.getFolderID === "function") {
-            existingPostFilter.folderID = oldPost.getFolderID();
-        }
-        const existingPost = await findOneFromDatabase({
-            collectionData: postCollectionData,
-            filter: existingPostFilter
-        });
-        if (!isNull(existingPost)) {
-            throw new Error(errorPrefix + "post with this name already exists");
+        if (isNull(oldPost)) {
+            throw new TypeError(errorPrefix + "post not found");
         }
 
-        const newPost = await renamePost({
+        const newPost = await changePostPinStatus({
             oldPost,
-            name,
+            isPinned,
             postCollectionData
         });
 
         const userLogOriginalData = transformEntityIntoASimpleObject(oldPost);
         await insertUserLog({
             userID,
-            postID: oldPost.getID(),
+            folderID: oldPost.getID(),
             originalData: userLogOriginalData
         });
 
@@ -151,4 +148,4 @@ let renamePostFactory = (
     }
 };
 
-module.exports = renamePostFactory;
+module.exports = changePostPinFactory;

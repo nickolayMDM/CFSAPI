@@ -12,6 +12,8 @@ let deletePostFactory = (
         isBoolean,
         isJsonString,
         isUrl,
+        isString,
+        isStringWithin,
         findOneFromDatabase,
         updateInDatabase,
         insertEntityIntoDatabase,
@@ -56,7 +58,9 @@ let deletePostFactory = (
             isPopulatedString,
             isBoolean,
             isJsonString,
-            isUrl
+            isUrl,
+            isString,
+            isStringWithin
         });
         const post = buildPost(postData);
 

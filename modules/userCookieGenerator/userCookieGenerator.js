@@ -1,8 +1,9 @@
 const md5 = require("md5");
 const validators = require("../../helpers/validators");
-const database = require("../../adapters/databaseAdapter");
 const geolocation = require("../../adapters/geolocationAdapter");
 const salt = "321e5d8676b32781c12d85eedf048b35";
+
+//TODO: initialize function for injecting database functions; use database.isID validator
 
 const _splitCookieValue = (value) => {
     if (typeof value !== "string") {
@@ -75,7 +76,7 @@ const isCookie = (value) => {
     return (
         valueArray.length === 2
         && validators.isMD5Hash(valueArray[0])
-        && database.isID(valueArray[1])
+        && validators.isPopulatedString(valueArray[1])
     );
 };
 

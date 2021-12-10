@@ -163,7 +163,7 @@ const FolderTest = (
             buildEntity: buildFolder,
             testName: "should get is deleted boolean from entity",
             expectedData: fullBuildParameters.isDeleted,
-            getFunctionName: "isDeleted",
+            getFunctionName: "getIsDeleted",
             buildParameters: fullBuildParameters
         });
     });

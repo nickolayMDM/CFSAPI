@@ -1,6 +1,7 @@
 const user = require("./userEntity");
 
 const VARIANT_PASSWORD = "password";
+const VARIANT_TIKTOK = "tiktok";
 
 const errorPrefix = "user authorization entity validation error: ";
 const collectionName = "userAuthorizations";
@@ -11,7 +12,7 @@ const buildUserAuthorizationFactory = (
         isPopulatedString,
         isBoolean,
         isWithin,
-        isMD5Hash
+        isPopulatedArray
     }
 ) => {
     return (
@@ -39,11 +40,20 @@ const buildUserAuthorizationFactory = (
             throw new Error(errorPrefix + "user ID value must be a valid identifier.");
         }
 
-        if (!isWithin(variant, [VARIANT_PASSWORD])) {
+        if (!isWithin(variant, [VARIANT_PASSWORD, VARIANT_TIKTOK])) {
             throw new Error(errorPrefix + "wrong variant value.");
         }
-        if (variant === VARIANT_PASSWORD && !isMD5Hash(token)) {
-            throw new Error(errorPrefix + "invalid token for password variant.");
+
+        if (variant === VARIANT_PASSWORD) {
+            const passwordTokenDataArray = token.split(",");
+            if (
+                !isPopulatedArray(passwordTokenDataArray)
+                || passwordTokenDataArray.length !== 2
+                || !isPopulatedString(passwordTokenDataArray[0])
+                || !isPopulatedString(passwordTokenDataArray[1])
+            ) {
+                throw new Error(errorPrefix + "invalid token for password variant.");
+            }
         }
 
         if (!isPopulatedString(token)) {

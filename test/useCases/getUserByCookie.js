@@ -12,17 +12,22 @@ const getUserByCookieUseCaseTest = (
         isEmail,
         isWithin,
         isID,
+        isNull,
+        isPopulatedString,
+        isPopulatedObject,
+        isTimestamp,
         insertIntoDatabase,
         generateDatabaseID,
         generateUserCookie,
-        findOneFromDatabase
+        findOneFromDatabase,
+        insertEntityIntoDatabase
     }
 ) => {
     testDescribe("Get user by cookie use case Test", () => {
-        const cookieValue = "7f01a2048a2499cbae639e2a74b5824f";
+        const cookieValue = "db578ea6cdb53d700f674c2cfcfb449c,0";
         const deviceValue = "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0";
         const IP = "0.0.0.1";
-        const falseCookieValue = "502455b39f97f177c58f06bd25cb6792";
+        const falseCookieValue = "502455b39f97f177c58f06bd25cb6792,0";
         const falseDeviceValue = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36";
         const falseIP = "0.0.0.2";
         const getUserByCookie = getUserByCookieFactory({
@@ -30,8 +35,14 @@ const getUserByCookieUseCaseTest = (
             isEmail,
             isWithin,
             isID,
+            isNull,
             generateUserCookie,
-            findOneFromDatabase
+            generateDatabaseID,
+            findOneFromDatabase,
+            isPopulatedString,
+            isPopulatedObject,
+            isTimestamp,
+            insertEntityIntoDatabase
         });
         const userCollectionData = userEntity.getCollectionData();
         const user = {
