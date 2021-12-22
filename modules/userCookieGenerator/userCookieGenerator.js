@@ -1,6 +1,6 @@
 const md5 = require("md5");
 const validators = require("../../helpers/validators");
-const geolocation = require("../../adapters/geolocationAdapter");
+const deviceDetector = require('node-device-detector');
 const salt = "321e5d8676b32781c12d85eedf048b35";
 
 //TODO: initialize function for injecting database functions; use database.isID validator
@@ -13,16 +13,31 @@ const _splitCookieValue = (value) => {
     return value.split(",");
 };
 
-const _generateCookieHashValue = async ({deviceValue, IP, userID}) => {
-    const geolocationData = await geolocation.getDataByIp(IP);
-    return md5(deviceValue + geolocationData.geoplugin_countryCode + geolocationData.geoplugin_regionCode + geolocationData.geoplugin_city + userID + salt);
+const _generateCookieHashValue = async ({deviceData, userID, deviceString}) => {
+    const deviceSlug = deviceData.os["short_name"] + deviceData.os["platform"] + deviceData.os["family"]
+        + deviceData.client["type"] + deviceData.client["short_name"] + deviceData.client["family"]
+        + deviceData.device["id"] + deviceData.device["type"] + deviceData.device["model"];
+    //TODO: maybe use a different encryption method here
+    return md5(deviceSlug + deviceString + userID + salt);
 };
 
-const generateUserCookie = async ({deviceValue, IP, userID}) => {
+const _getDeviceValueDetails = ({deviceValue}) => {
+    const detector = new deviceDetector();
+    const result = detector.detect(deviceValue);
+
+    return result;
+};
+
+const generateUserCookie = async ({deviceValue, IP, userID, deviceString}) => {
+    const deviceData = _getDeviceValueDetails({
+        deviceValue
+    });
+
     const cookieHashValue = await _generateCookieHashValue({
-        deviceValue,
+        deviceData,
         userID,
-        IP
+        IP,
+        deviceString
     });
 
     return cookieHashValue + "," + userID;

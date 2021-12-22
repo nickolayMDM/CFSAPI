@@ -99,13 +99,13 @@ let getFolderContentsFactory = (
 
         const postCollectionData = postEntity.getCollectionData();
         let folderPostIDToArrayKeyCorrelation = {};
-        //TODO: use reduce or smth
-        let folderIDs = [];
-        for (let key in folders) {
-            folders[key].isEmpty = true;
-            folderIDs.push(folders[key].ID);
-            folderPostIDToArrayKeyCorrelation[folders[key].ID] = key;
-        }
+        let folderIDs = folders.reduce((accumulator, value, index) => {
+            folders[index].isEmpty = true;
+            folderPostIDToArrayKeyCorrelation[value.ID] = index;
+            accumulator.push(value.ID);
+
+            return accumulator;
+        }, []);
 
         const postCounts = await countInDatabase({
             collectionData: postCollectionData,
@@ -131,7 +131,8 @@ let getFolderContentsFactory = (
             collectionData: folderCollectionData,
             filter: {
                 ID: folderID,
-                userID
+                userID,
+                isDeleted: false
             }
         });
         const buildFolder = folderEntity.buildFolderFactory({

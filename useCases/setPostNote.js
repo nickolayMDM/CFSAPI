@@ -79,7 +79,8 @@ let setPostNoteFactory = (
             collectionData: postCollectionData,
             filter: {
                 ID: postID,
-                userID
+                userID,
+                isDeleted: false
             }
         });
         const buildPost = postEntity.buildPostFactory({

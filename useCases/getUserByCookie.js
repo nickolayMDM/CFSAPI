@@ -62,7 +62,7 @@ let getUserByCookieFactory = (
         });
 
         if (realCookieValue !== cookieValue) {
-            //TODO: remove
+            //TODO: create custom error objects that would contain additional data that will be saved in the database
             console.log(realCookieValue, cookieValue);
             throw new Error("cookie value does not match the provided data");
         }

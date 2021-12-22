@@ -66,7 +66,8 @@ let generateGuestUserFactory = (
     return async (
         {
             deviceValue,
-            IP
+            IP,
+            deviceString
         }
     ) => {
         const userCollectionData = userEntity.getCollectionData();
@@ -82,7 +83,8 @@ let generateGuestUserFactory = (
         const cookie = await generateUserCookie({
             deviceValue,
             IP,
-            userID
+            userID,
+            deviceString
         });
 
         await insertUserLog({

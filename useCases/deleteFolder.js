@@ -85,7 +85,8 @@ let deleteFolderFactory = (
             collectionData: folderCollectionData,
             filter: {
                 userID,
-                ID: folderID
+                ID: folderID,
+                isDeleted: false
             }
         });
         if (isNull(folderData)) {

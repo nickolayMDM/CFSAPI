@@ -92,7 +92,8 @@ let moveFolderFactory = (
             collectionData: folderCollectionData,
             filter: {
                 ID: folderID,
-                userID
+                userID,
+                isDeleted: false
             }
         });
         const buildFolder = folderEntity.buildFolderFactory({
@@ -132,6 +133,7 @@ let moveFolderFactory = (
                 filter: {
                     userID,
                     ID: parentID,
+                    isDeleted: false
                 }
             });
 
@@ -145,7 +147,8 @@ let moveFolderFactory = (
             filter: {
                 userID,
                 parentID,
-                name: oldFolder.getName()
+                name: oldFolder.getName(),
+                isDeleted: false
             }
         });
         if (!isNull(existingFolder)) {

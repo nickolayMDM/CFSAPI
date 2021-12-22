@@ -89,7 +89,6 @@ let deletePostFactory = (
         }
         const postCollectionData = postEntity.getCollectionData();
 
-        //TODO: add isDeleted filter when searching for the entity to delete
         const postData = await findOneFromDatabase({
             collectionData: postCollectionData,
             filter: {

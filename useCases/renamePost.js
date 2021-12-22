@@ -80,7 +80,8 @@ let renamePostFactory = (
             collectionData: postCollectionData,
             filter: {
                 ID: postID,
-                userID
+                userID,
+                isDeleted: false
             }
         });
         const buildPost = postEntity.buildPostFactory({
@@ -120,7 +121,8 @@ let renamePostFactory = (
 
         const existingPostFilter = {
             userID,
-            name
+            name,
+            isDeleted: false
         };
         if (typeof oldPost.getFolderID === "function") {
             existingPostFilter.folderID = oldPost.getFolderID();

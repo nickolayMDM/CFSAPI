@@ -49,7 +49,8 @@ let addFolderFactory = (
             collectionData: folderCollectionData,
             filter: {
                 userID,
-                ID: parentID
+                ID: parentID,
+                isDeleted: false
             }
         });
     };
@@ -112,7 +113,8 @@ let addFolderFactory = (
             filter: {
                 userID,
                 parentID: parentID,
-                name: name
+                name: name,
+                isDeleted: false
             }
         });
         if (!isNull(existingFolder) && typeof existingFolder !== "undefined") {

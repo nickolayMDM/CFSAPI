@@ -9,6 +9,8 @@ const movePostUseCaseFactory = require("../useCases/movePost");
 const deletePostUseCaseFactory = require("../useCases/deletePost");
 const changePostPinStatusUseCaseFactory = require("../useCases/changePostPinStatus");
 const setPostNoteUseCaseFactory = require("../useCases/setPostNote");
+const getSearchedPostsFactory = require("../useCases/getSearchedPosts");
+const getInputDetailsFactory = require("../useCases/getInputDetails");
 const managerConnector = require("../adapters/managerConnectorAdapter");
 const imageFileAdapter = require("../adapters/fileAdapters/imageFileAdapter");
 
@@ -17,20 +19,23 @@ const getInputDetails = async (req, res) => {
     const sessionUserID = req.currentUserID;
     let post;
 
-    const processPostInput = managerConnector.getPostDetailsFromInput;
-
-    //TODO: transform into a use case
-    const errorPrefix = "temporary getInputDetails solution: ";
-    if (
-        !database.isID(sessionUserID)
-        || !validators.isPopulatedString(postInput)
-    ) {
-        throw new TypeError(errorPrefix + "invalid data passed");
-    }
-    const processPostInputResult = await processPostInput({
-        postInput
+    const getInputDetailsUseCase = getInputDetailsFactory({
+        isID: database.isID,
+        isPopulatedString: validators.isPopulatedString,
+        processPostInput: managerConnector.getPostDetailsFromInput
     });
-    post = processPostInputResult.response.postDetails;
+
+    try {
+        post = await getInputDetailsUseCase({
+            userID: sessionUserID,
+            postInput
+        });
+    } catch (error) {
+        return await debug.returnServerError({
+            res,
+            error
+        });
+    }
 
     return res.status(200).json(post);
 };
@@ -314,4 +319,35 @@ const setNote = async (req, res) => {
     return res.status(200).json(post);
 };
 
-module.exports = {getInputDetails, add, rename, move, remove, changePinStatus, setNote};
+const getSearchedList = async (req, res) => {
+    const searchQuery = req.query.search;
+    const sessionUserID = req.currentUserID;
+    let contents = {};
+
+    const getSearchedPostsUseCase = getSearchedPostsFactory({
+        isDefined: validators.isDefined,
+        isID: database.isID,
+        isPopulatedString: validators.isPopulatedString,
+        isPopulatedObject: validators.isPopulatedObject,
+        isTimestamp: validators.isTimestamp,
+        generateDatabaseID: database.generateID,
+        findAllFromDatabase: database.findAll,
+        insertIntoDatabase: database.insert
+    });
+
+    try {
+        contents = await getSearchedPostsUseCase({
+            userID: sessionUserID,
+            searchQuery
+        });
+    } catch (error) {
+        return await debug.returnServerError({
+            res,
+            error
+        });
+    }
+
+    return res.status(200).json(contents);
+};
+
+module.exports = {getInputDetails, add, rename, move, remove, changePinStatus, setNote, getSearchedList};

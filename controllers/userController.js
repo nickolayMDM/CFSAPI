@@ -7,7 +7,8 @@ const getUserByIDFactory = require("../useCases/getUserByID");
 const getUserByCookieFactory = require("../useCases/getUserByCookie");
 const getUserByTokenFactory = require("../useCases/getUserByToken");
 const addPasswordAuthorizationToUserFactory = require("../useCases/addPasswordAuthorizationToUser");
-const getPostsCountUseCaseFactory = require("../useCases/getPostsCount");
+const getPostsCountFactory = require("../useCases/getPostsCount");
+const mergeUsersUseCaseFactory = require("../useCases/mergeUsers");
 const validators = require("../helpers/validators");
 const objectHelpers = require("../helpers/object");
 const httpHelpers = require("../helpers/http");
@@ -28,7 +29,8 @@ const _generateNewUser = async (req, res) => {
     });
     const newGuestUserData = await generateGuestUser({
         deviceValue: httpHelpers.getUserAgentFromRequest(req),
-        IP: httpHelpers.getIPFromRequest(req)
+        IP: httpHelpers.getIPFromRequest(req),
+        deviceString: req.get("app-device-string") || ""
     });
 
     cookies.set({
@@ -149,7 +151,7 @@ const getOwnUser = async (req, res) => {
     let userEntity;
 
     if (!database.isID(sessionUserID)) {
-        res.status(404).json({error: "user not authorized"})
+        return res.status(404).json({error: "user not authorized"})
     }
 
     const getUserByID = getUserByIDFactory({
@@ -229,15 +231,16 @@ const getUserByPassword = async (req, res) => {
         });
     }
 
-    const sessionUser = _getUserByID(sessionUserID);
+    const sessionUser = await _getUserByID(sessionUserID);
     if (sessionUser.getStatus() === "guest") {
         let arePopulatedGuestContents = false;
-        const getPostsCountUseCase = getPostsCountUseCaseFactory({
+        const getPostsCountUseCase = getPostsCountFactory({
             isDefined: validators.isDefined,
             isID: database.isID,
             isPopulatedString: validators.isPopulatedString,
             isPopulatedObject: validators.isPopulatedObject,
             isTimestamp: validators.isTimestamp,
+            isPopulatedArray: validators.isPopulatedArray,
             generateDatabaseID: database.generateID,
             countInDatabase: database.count,
             insertIntoDatabase: database.insert
@@ -317,11 +320,52 @@ const addPasswordAuthorizationToUser = async (req, res) => {
     return res.status(200).json(user);
 };
 
+const mergeUserWithCurrent = async (req, res) => {
+    const fromUserID = req.body.user;
+    const toUserID = req.currentUserID;
+    if (!database.isID(toUserID)) {
+        res.status(404).json({error: "user not authorized"})
+    }
+
+    const mergeUsers = mergeUsersUseCaseFactory({
+        isDefined: validators.isDefined,
+        isEmail: validators.isEmail,
+        isWithin: validators.isWithin,
+        isID: database.isID,
+        isNull: validators.isNull,
+        isPopulatedString: validators.isPopulatedString,
+        isPopulatedObject: validators.isPopulatedObject,
+        isTimestamp: validators.isTimestamp,
+        isPopulatedArray: validators.isPopulatedArray,
+        generateDatabaseID: database.generateID,
+        findOneFromDatabase: database.findOne,
+        findAllFromDatabase: database.findAll,
+        insertEntityIntoDatabase: database.insertEntity,
+        updateManyInDatabase: database.updateMany,
+        replaceItemPropertyInObjectArray: objectHelpers.replaceItemPropertyInObjectArray
+    });
+
+    try {
+        await mergeUsers({
+            toUserID,
+            fromUserID
+        });
+    } catch (error) {
+        return await debug.returnServerError({
+            res,
+            error
+        });
+    }
+
+    return res.status(200).json({});
+};
+
 module.exports = {
     authorize,
     getOwnUser,
     setRequestUserMiddleware,
     authorizeMiddleware,
     getUserByPassword,
-    addPasswordAuthorizationToUser
+    addPasswordAuthorizationToUser,
+    mergeUserWithCurrent
 };

@@ -100,7 +100,8 @@ let movePostFactory = (
             collectionData: postCollectionData,
             filter: {
                 ID: postID,
-                userID
+                userID,
+                isDeleted: false
             }
         });
         const buildPost = postEntity.buildPostFactory({
@@ -164,6 +165,7 @@ let movePostFactory = (
             filter: {
                 userID,
                 folderID,
+                isDeleted: false,
                 $or: [
                     {
                         name: oldPost.getName()

@@ -10,6 +10,7 @@ let getPostsCountFactory = (
         isPopulatedString,
         isPopulatedObject,
         isTimestamp,
+        isPopulatedArray,
         generateDatabaseID,
         countInDatabase,
         insertIntoDatabase
@@ -51,11 +52,16 @@ let getPostsCountFactory = (
             isDeleted: false
         };
 
-        return await countInDatabase({
+        const countResult = await countInDatabase({
             collectionData: postCollectionData,
             filter,
             sort: {isPinned: -1}
         });
+
+        if (isPopulatedArray(countResult)) {
+            return countResult[0].count
+        }
+        return 0;
     };
 
     return async (

@@ -77,7 +77,8 @@ let renameFolderFactory = (
             collectionData: folderCollectionData,
             filter: {
                 ID: folderID,
-                userID
+                userID,
+                isDeleted: false
             }
         });
         const buildFolder = folderEntity.buildFolderFactory({
@@ -115,7 +116,8 @@ let renameFolderFactory = (
             collectionData: folderCollectionData,
             filter: {
                 userID,
-                name
+                name,
+                isDeleted: false
             }
         });
         if (!isNull(existingFolder)) {

@@ -148,6 +148,7 @@ let addPostFactory = (
             filter: {
                 userID,
                 folderID,
+                isDeleted: false,
                 $or: [
                     {
                         name

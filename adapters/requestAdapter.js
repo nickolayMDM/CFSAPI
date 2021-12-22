@@ -1,3 +1,4 @@
+//TODO: use RabbitMQ when there will be an actual server
 const axios = require("axios");
 
 const get = async ({url, params, headers = {}} = {}) => {

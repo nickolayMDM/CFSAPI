@@ -38,6 +38,13 @@ const initiate = (app) => {
         type: "put",
         func: userController.addPasswordAuthorizationToUser
     });
+
+    route.setRoute({
+        app,
+        path: "/mergeUserWithCurrent",
+        type: "put",
+        func: userController.mergeUserWithCurrent
+    });
 };
 
 module.exports = initiate;

@@ -82,6 +82,14 @@ const _countGrouped = async ({collectionData, filter, group}) => {
     return result;
 };
 
+const _transformFieldStringToDatabase = (value) => {
+    if (value === "ID") {
+        return "_id";
+    }
+
+    return value;
+};
+
 const getDatabaseConnection = async (databaseName) => {
     if (typeof clientConnection === "undefined") {
         clientConnection = await client.connect();
@@ -124,16 +132,63 @@ const databaseAdapter = {
 
         return null;
     },
-    findAll: async ({collectionData, filter, sort = {}}) => {
+    // findAll: async ({collectionData, filter, project = {}, sort = {}}) => {
+    //     const databaseConnection = await getDatabaseConnection(databaseName);
+    //     let options = {};
+    //     if (validators.isPopulatedObject(project)) {
+    //         project = _convertIDPropertyToDatabase(project);
+    //         options.projection = project;
+    //     }
+    //
+    //     filter = _transformFilter(filter);
+    //
+    //     let result = databaseConnection.collection(collectionData.name).find(filter, options);
+    //     if (validators.isPopulatedObject(sort)) {
+    //         result.sort(sort);
+    //     }
+    //     result = await result.toArray();
+    //     if (!validators.isNull(result) && validators.isPopulatedArray(result)) {
+    //         result = _convertIDPropertyFromDatabase(result);
+    //     }
+    //
+    //     return result;
+    // },
+    findAll: async ({collectionData, filter, project = {}, sort = {}, join = []}) => {
         const databaseConnection = await getDatabaseConnection(databaseName);
-
         filter = _transformFilter(filter);
-
-        let result = databaseConnection.collection(collectionData.name).find(filter);
-        if (validators.isPopulatedObject(sort)) {
-            result.sort(sort);
+        let aggregation = [
+            { $match: filter }
+        ];
+        if (validators.isPopulatedObject(project)) {
+            project = _convertIDPropertyToDatabase(project);
+            aggregation.push({
+                $project: project
+            });
         }
-        result = await result.toArray();
+        if (validators.isPopulatedObject(sort)) {
+            aggregation.push({
+                $sort: sort
+            });
+        }
+        if (validators.isPopulatedArray(join)) {
+            for (let key in join) {
+                if (!join.hasOwnProperty(key)) continue;
+
+                const localField = _transformFieldStringToDatabase(join[key].masterField);
+                const foreignField = _transformFieldStringToDatabase(join[key].fromField);
+
+                aggregation.push({
+                    $lookup: {
+                        from: join[key].collectionData.name,
+                        as: join[key].outputKey,
+                        localField,
+                        foreignField
+                    }
+                });
+            }
+        }
+
+        let result = await databaseConnection.collection(collectionData.name).aggregate(aggregation).toArray();
         if (!validators.isNull(result) && validators.isPopulatedArray(result)) {
             result = _convertIDPropertyFromDatabase(result);
         }
@@ -147,6 +202,9 @@ const databaseAdapter = {
         if (typeof entityData._id === "undefined" && typeof entityData.ID !== "undefined") {
             entityData = _convertIDPropertyToDatabase(entityData);
         }
+        else if (typeof entityData._id === "undefined") {
+            entityData._id = databaseAdapter.generateID();
+        }
 
         await databaseConnection.collection(collectionData.name).insertOne(entityData);
     },
@@ -159,6 +217,19 @@ const databaseAdapter = {
             await databaseAdapter.insert({
                 collectionData: insertArray[key].collectionData,
                 entityData: insertArray[key].data,
+                databaseConnection
+            });
+        }
+    },
+    insertMultipleInOneCollection: async ({collectionData, insertArray = []} = {}) => {
+        const databaseConnection = await getDatabaseConnection(databaseName);
+
+        for (let key in insertArray) {
+            if (!insertArray.hasOwnProperty(key)) continue;
+
+            await databaseAdapter.insert({
+                collectionData,
+                entityData: insertArray[key],
                 databaseConnection
             });
         }
@@ -196,6 +267,21 @@ const databaseAdapter = {
             updateData: data
         });
     },
+    updateMany: async ({collectionData, filter, updateData, unsetData} = {}) => {
+        const databaseConnection = await getDatabaseConnection(databaseName);
+
+        filter = _convertIDPropertyToDatabase(filter);
+
+        let update = {};
+        if (typeof updateData !== "undefined") {
+            update.$set = updateData;
+        }
+        if (typeof unsetData !== "undefined") {
+            update.$unset = unsetData;
+        }
+
+        await databaseConnection.collection(collectionData.name).updateMany(filter, update);
+    },
     count: async ({collectionData, filter, group}) => {
         let result;
         filter = _transformFilter(filter);
@@ -219,6 +305,15 @@ const databaseAdapter = {
 
         return result;
     },
+    delete: async ({collectionData, filter}) => {
+        const databaseConnection = await getDatabaseConnection(databaseName);
+
+        if (typeof filter._id === "undefined" && typeof filter.ID !== "undefined") {
+            filter = _convertIDPropertyToDatabase(filter);
+        }
+
+        await databaseConnection.collection(collectionData.name).deleteMany(filter);
+    }
 };
 
 module.exports = databaseAdapter;

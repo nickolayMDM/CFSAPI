@@ -85,7 +85,8 @@ let changeFolderPinFactory = (
             collectionData: folderCollectionData,
             filter: {
                 ID: folderID,
-                userID
+                userID,
+                isDeleted: false
             }
         });
         const buildPost = folderEntity.buildFolderFactory({
