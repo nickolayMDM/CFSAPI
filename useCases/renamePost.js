@@ -5,35 +5,20 @@ const errorPrefix = "rename post use case error: ";
 
 let renamePostFactory = (
     {
-        isDefined,
-        isID,
-        isPopulatedString,
-        isPopulatedObject,
-        isTimestamp,
-        isNull,
-        isBoolean,
-        isJsonString,
-        isUrl,
-        isString,
-        isStringWithin,
-        generateDatabaseID,
-        findOneFromDatabase,
-        insertEntityIntoDatabase,
-        updateEntityInDatabase,
-        transformEntityIntoASimpleObject
+        validators,
+        database,
+        objectHelpers,
+        RequestError
     }
 ) => {
     const insertUserLog = async ({userID, postID, originalData}) => {
         const userLogCollectionData = userLogEntity.getCollectionData();
-        const userLogID = generateDatabaseID({
+        const userLogID = database.generateID({
             collectionName: userLogCollectionData.name
         });
         const buildUserLog = userLogEntity.buildUserLogFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isPopulatedObject,
-            isTimestamp
+            validators,
+            database
         });
         const userLog = buildUserLog({
             ID: userLogID,
@@ -45,29 +30,23 @@ let renamePostFactory = (
             }
         });
 
-        await insertEntityIntoDatabase({
+        await database.insertEntity({
             collectionData: userLogCollectionData,
             entityData: userLog
         });
     };
 
     const renamePost = async ({oldPost, name, postCollectionData}) => {
-        let postData = transformEntityIntoASimpleObject(oldPost);
+        let postData = objectHelpers.transformEntityIntoASimpleObject(oldPost);
         postData.name = name;
 
         const buildPost = postEntity.buildPostFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isBoolean,
-            isJsonString,
-            isUrl,
-            isString,
-            isStringWithin
+            validators,
+            database
         });
         const post = buildPost(postData);
 
-        await updateEntityInDatabase({
+        await database.updateEntity({
             collectionData: postCollectionData,
             entityData: post
         });
@@ -76,7 +55,7 @@ let renamePostFactory = (
     };
 
     const getPostFromDatabase = async ({userID, postID, postCollectionData}) => {
-        const postData = await findOneFromDatabase({
+        const postData = await database.findOne({
             collectionData: postCollectionData,
             filter: {
                 ID: postID,
@@ -84,15 +63,13 @@ let renamePostFactory = (
                 isDeleted: false
             }
         });
+        if (validators.isNull(postData)) {
+            return null;
+        }
+
         const buildPost = postEntity.buildPostFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isBoolean,
-            isJsonString,
-            isUrl,
-            isString,
-            isStringWithin
+            validators,
+            database
         });
 
         return buildPost(postData);
@@ -106,11 +83,15 @@ let renamePostFactory = (
         } = {}
     ) => {
         if (
-            !isID(userID)
-            || !isID(postID)
-            || !isPopulatedString(name)
+            !database.isID(userID)
+            || !database.isID(postID)
+            || !validators.isPopulatedString(name)
         ) {
-            throw new Error(errorPrefix + "invalid data passed");
+            throw new RequestError(errorPrefix + "invalid data passed", {
+                name,
+                userID,
+                postID
+            });
         }
         const postCollectionData = postEntity.getCollectionData();
         const oldPost = await getPostFromDatabase({
@@ -118,6 +99,13 @@ let renamePostFactory = (
             postID,
             postCollectionData
         });
+        if (validators.isNull(oldPost)) {
+            throw new RequestError(errorPrefix + "could not access the folder", {
+                name,
+                userID,
+                postID
+            });
+        }
 
         const existingPostFilter = {
             userID,
@@ -127,12 +115,16 @@ let renamePostFactory = (
         if (typeof oldPost.getFolderID === "function") {
             existingPostFilter.folderID = oldPost.getFolderID();
         }
-        const existingPost = await findOneFromDatabase({
+        const existingPost = await database.findOne({
             collectionData: postCollectionData,
             filter: existingPostFilter
         });
-        if (!isNull(existingPost)) {
-            throw new Error(errorPrefix + "post with this name already exists");
+        if (!validators.isNull(existingPost)) {
+            throw new RequestError(errorPrefix + "post with this name already exists", {
+                userID,
+                name,
+                folderID: oldPost.getFolderID()
+            });
         }
 
         const newPost = await renamePost({
@@ -141,14 +133,14 @@ let renamePostFactory = (
             postCollectionData
         });
 
-        const userLogOriginalData = transformEntityIntoASimpleObject(oldPost);
+        const userLogOriginalData = objectHelpers.transformEntityIntoASimpleObject(oldPost);
         await insertUserLog({
             userID,
             postID: oldPost.getID(),
             originalData: userLogOriginalData
         });
 
-        const newPostData = transformEntityIntoASimpleObject(newPost);
+        const newPostData = objectHelpers.transformEntityIntoASimpleObject(newPost);
         return Object.freeze(newPostData);
     }
 };

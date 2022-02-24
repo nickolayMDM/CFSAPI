@@ -5,31 +5,20 @@ const errorPrefix = "rename folder use case error: ";
 
 let renameFolderFactory = (
     {
-        isDefined,
-        isID,
-        isPopulatedString,
-        isPopulatedObject,
-        isTimestamp,
-        isNull,
-        isBoolean,
-        generateDatabaseID,
-        findOneFromDatabase,
-        insertEntityIntoDatabase,
-        updateEntityInDatabase,
-        transformEntityIntoASimpleObject
+        validators,
+        database,
+        objectHelpers,
+        RequestError
     }
 ) => {
     const insertUserLog = async ({userID, folderID, originalData}) => {
         const userLogCollectionData = userLogEntity.getCollectionData();
-        const userLogID = generateDatabaseID({
+        const userLogID = database.generateID({
             collectionName: userLogCollectionData.name
         });
         const buildUserLog = userLogEntity.buildUserLogFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isPopulatedObject,
-            isTimestamp
+            validators,
+            database
         });
         const userLog = buildUserLog({
             ID: userLogID,
@@ -41,14 +30,14 @@ let renameFolderFactory = (
             }
         });
 
-        await insertEntityIntoDatabase({
+        await database.insertEntity({
             collectionData: userLogCollectionData,
             entityData: userLog
         });
     };
 
     const renameFolder = async ({oldFolder, name, folderCollectionData}) => {
-        let folderData = transformEntityIntoASimpleObject(oldFolder, [
+        let folderData = objectHelpers.transformEntityIntoASimpleObject(oldFolder, [
             "ID",
             "userID",
             "isDeleted",
@@ -57,14 +46,12 @@ let renameFolderFactory = (
         folderData.name = name;
 
         const buildFolder = folderEntity.buildFolderFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isBoolean
+            validators,
+            database
         });
         const folder = buildFolder(folderData);
 
-        await updateEntityInDatabase({
+        await database.updateEntity({
             collectionData: folderCollectionData,
             entityData: folder
         });
@@ -73,7 +60,7 @@ let renameFolderFactory = (
     };
 
     const getFolderFromDatabase = async ({userID, folderID, folderCollectionData}) => {
-        const folderData = await findOneFromDatabase({
+        const folderData = await database.findOne({
             collectionData: folderCollectionData,
             filter: {
                 ID: folderID,
@@ -81,11 +68,13 @@ let renameFolderFactory = (
                 isDeleted: false
             }
         });
+        if (validators.isNull(folderData)) {
+            return null;
+        }
+
         const buildFolder = folderEntity.buildFolderFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isBoolean
+            validators,
+            database
         });
 
         return buildFolder(folderData);
@@ -99,11 +88,15 @@ let renameFolderFactory = (
         } = {}
     ) => {
         if (
-            !isID(userID)
-            || !isID(folderID)
-            || !isPopulatedString(name)
+            !database.isID(userID)
+            || !database.isID(folderID)
+            || !validators.isPopulatedString(name)
         ) {
-            throw new Error(errorPrefix + "invalid data passed");
+            throw new RequestError(errorPrefix + "invalid data passed", {
+                name,
+                userID,
+                folderID
+            });
         }
         const folderCollectionData = folderEntity.getCollectionData();
         const oldFolder = await getFolderFromDatabase({
@@ -111,8 +104,15 @@ let renameFolderFactory = (
             folderID,
             folderCollectionData
         });
+        if (validators.isNull(oldFolder)) {
+            throw new RequestError(errorPrefix + "could not access the folder", {
+                name,
+                userID,
+                folderID
+            });
+        }
 
-        const existingFolder = await findOneFromDatabase({
+        const existingFolder = await database.findOne({
             collectionData: folderCollectionData,
             filter: {
                 userID,
@@ -120,17 +120,20 @@ let renameFolderFactory = (
                 isDeleted: false
             }
         });
-        if (!isNull(existingFolder)) {
-            throw new Error(errorPrefix + "folder with this name already exists");
+        if (!validators.isNull(existingFolder)) {
+            throw new RequestError(errorPrefix + "folder with this name already exists", {
+                userID,
+                name
+            });
         }
 
-        const newFolder = await renameFolder({
+        await renameFolder({
             oldFolder,
             name,
             folderCollectionData
         });
 
-        const userLogOriginalData = transformEntityIntoASimpleObject(oldFolder, [
+        const userLogOriginalData = objectHelpers.transformEntityIntoASimpleObject(oldFolder, [
             "ID",
             "userID",
             "name",
@@ -143,7 +146,7 @@ let renameFolderFactory = (
             originalData: userLogOriginalData
         });
 
-        const newFolderData = transformEntityIntoASimpleObject(oldFolder, [
+        const newFolderData = objectHelpers.transformEntityIntoASimpleObject(oldFolder, [
             "ID",
             "userID",
             "name",

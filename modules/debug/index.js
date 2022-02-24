@@ -1,3 +1,5 @@
+//TODO: move serverLogEntity to a unique useCase "addServerLog"
+//TODO: move all modules into adapters
 let _databaseAdapter;
 let _serverLogEntity;
 let _validators;
@@ -11,16 +13,20 @@ const initialize = ({databaseAdapter, serverLogEntity, validators}) => {
 const returnServerError = async ({res, error}) => {
     const serverLogCollectionData = _serverLogEntity.getCollectionData();
     const buildServerLog = _serverLogEntity.buildServerLogFactory({
-        isID: _databaseAdapter.isID,
-        isPopulatedString: _validators.isPopulatedString,
-        isTimestamp: _validators.isTimestamp
+        database: _databaseAdapter,
+        validators: _validators
     });
     const serverLogID = _databaseAdapter.generateID({collectionName: serverLogCollectionData.name});
-    const serverLog = buildServerLog({
+    let serverLogData = {
         ID: serverLogID,
+        name: error.name,
         message: error.message,
-        stack: error.stack,
-    });
+        stack: error.stack
+    };
+    if (_validators.isPopulatedObject(error.payload)) {
+        serverLogData.payload = error.payload;
+    }
+    const serverLog = buildServerLog(serverLogData);
     await _databaseAdapter.insertEntity({
         collectionData: serverLogCollectionData,
         entityData: serverLog

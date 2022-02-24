@@ -1,63 +1,57 @@
 const user = require("../../entities/userEntity");
 
-const userTest = ({
-    buildCorrectEntity,
-    buildIncorrectEntity,
-    getFieldFromEntity,
-    getEmptyFieldFromEntity,
-    assertCollectionDataGetter,
-    testDescribe,
-    testIt,
-    testEqual,
-    isDefined,
-    isEmail,
-    isWithin,
-    isID,
-    generateDatabaseID
-}) => {
-    testDescribe("User Entity Test", () => {
-        assertCollectionDataGetter({
+const userTest = (
+    {
+        test,
+        validators,
+        database
+    }
+) => {
+    test.describe("User Entity Test", () => {
+        test.assertCollectionDataGetter({
             getterFunction: user.getCollectionData
         });
 
         const buildUser = user.buildUserFactory({
-            isDefined,
-            isEmail,
-            isWithin,
-            isID
+            validators,
+            database
         });
         const userStatuses = user.getUserStatuses();
+        const userSubscriptions = user.getUserSubscriptions();
         const userCollectionData = user.getCollectionData();
-        const ID = generateDatabaseID({
+        const ID = database.generateID({
             collectionName: userCollectionData.name
         });
+        const subscriptionEndTimestamp = Date.now() + 24 * 60 * 60 * 1000;
         const fullBuildParameters = {
             name: "Bob",
             email: "bobistesting@test.mail",
             status: userStatuses.STATUS_MERGED,
-            parentID: generateDatabaseID({
+            subscriptionType: userSubscriptions.SUBSCRIPTION_PAID,
+            subscriptionEndTimestamp: subscriptionEndTimestamp,
+            parentID: database.generateID({
                 collectionName: userCollectionData.name
             })
         };
 
-        buildCorrectEntity({
+        test.buildCorrectEntity({
             ID,
             buildEntity: buildUser,
             testName: "should build a minimal entity"
         });
-        buildCorrectEntity({
+        test.buildCorrectEntity({
             ID,
             buildEntity: buildUser,
             testName: "should build a full entity",
             buildParameters: fullBuildParameters
         });
 
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildUser,
             testName: "should throw an error when building an entity without an ID",
             buildParameters: fullBuildParameters
         });
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildUser,
             testName: "should throw an error when building an entity with an incorrect ID",
             buildParameters: {
@@ -65,7 +59,7 @@ const userTest = ({
                 ID: "Bob"
             }
         });
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildUser,
             testName: "should throw an error when building an entity with a name with less than 3 characters",
             buildParameters: {
@@ -74,7 +68,7 @@ const userTest = ({
                 name: "Bo"
             }
         });
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildUser,
             testName: "should throw an error when building an entity with a name that is not a string",
             buildParameters: {
@@ -83,7 +77,7 @@ const userTest = ({
                 name: 42
             }
         });
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildUser,
             testName: "should throw an error when building an entity with an invalid email",
             buildParameters: {
@@ -92,7 +86,7 @@ const userTest = ({
                 email: "Bob"
             }
         });
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildUser,
             testName: "should throw an error when building an entity with an invalid status",
             buildParameters: {
@@ -101,16 +95,7 @@ const userTest = ({
                 status: "Bob"
             }
         });
-        buildIncorrectEntity({
-            buildEntity: buildUser,
-            testName: "should throw an error when building an entity with a parent ID and not a 'merged' status",
-            buildParameters: {
-                ...fullBuildParameters,
-                ID,
-                status: userStatuses.STATUS_GUEST
-            }
-        });
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildUser,
             testName: "should throw an error when building an entity with a 'merged' status and without a parent ID",
             buildParameters: {
@@ -119,7 +104,7 @@ const userTest = ({
                 parentID: undefined
             }
         });
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildUser,
             testName: "should throw an error when building an entity with own ID as a parent ID",
             buildParameters: {
@@ -128,8 +113,35 @@ const userTest = ({
                 parentID: ID
             }
         });
+        test.buildIncorrectEntity({
+            buildEntity: buildUser,
+            testName: "should throw an error when building an entity with an incorrect subscription data type",
+            buildParameters: {
+                ...fullBuildParameters,
+                ID,
+                subscriptionType: "Bob"
+            }
+        });
+        test.buildIncorrectEntity({
+            buildEntity: buildUser,
+            testName: "should throw an error when building an entity with an incorrect subscription type",
+            buildParameters: {
+                ...fullBuildParameters,
+                ID,
+                subscriptionType: "Bob"
+            }
+        });
+        test.buildIncorrectEntity({
+            buildEntity: buildUser,
+            testName: "should throw an error when building an entity with a paid subscription without the end timestamp",
+            buildParameters: {
+                ...fullBuildParameters,
+                ID,
+                subscriptionEndTimestamp: undefined
+            }
+        });
 
-        getFieldFromEntity({
+        test.getFieldFromEntity({
             ID,
             buildEntity: buildUser,
             testName: "should get ID from entity",
@@ -137,7 +149,7 @@ const userTest = ({
             getFunctionName: "getID",
             buildParameters: fullBuildParameters
         });
-        getFieldFromEntity({
+        test.getFieldFromEntity({
             ID,
             buildEntity: buildUser,
             testName: "should get name from entity",
@@ -145,7 +157,7 @@ const userTest = ({
             getFunctionName: "getName",
             buildParameters: fullBuildParameters
         });
-        getEmptyFieldFromEntity({
+        test.getEmptyFieldFromEntity({
             ID,
             buildEntity: buildUser,
             testName: "should throw an error when getting an undefined name from entity",
@@ -156,7 +168,7 @@ const userTest = ({
             }
         });
 
-        getFieldFromEntity({
+        test.getFieldFromEntity({
             ID,
             buildEntity: buildUser,
             testName: "should get email from entity",
@@ -164,7 +176,7 @@ const userTest = ({
             getFunctionName: "getEmail",
             buildParameters: fullBuildParameters
         });
-        getEmptyFieldFromEntity({
+        test.getEmptyFieldFromEntity({
             ID,
             buildEntity: buildUser,
             testName: "should throw an error when getting an undefined email from entity",
@@ -174,7 +186,7 @@ const userTest = ({
                 email: undefined
             }
         });
-        getFieldFromEntity({
+        test.getFieldFromEntity({
             ID,
             buildEntity: buildUser,
             testName: "should get status from entity",
@@ -183,7 +195,7 @@ const userTest = ({
             buildParameters: fullBuildParameters
         });
 
-        getFieldFromEntity({
+        test.getFieldFromEntity({
             ID,
             buildEntity: buildUser,
             testName: "should get parent ID from entity",
@@ -191,7 +203,7 @@ const userTest = ({
             getFunctionName: "getParentID",
             buildParameters: fullBuildParameters
         });
-        getEmptyFieldFromEntity({
+        test.getEmptyFieldFromEntity({
             ID,
             buildEntity: buildUser,
             testName: "should throw an error when getting an undefined parentID from entity",
@@ -203,7 +215,7 @@ const userTest = ({
             }
         });
 
-        getFieldFromEntity({
+        test.getFieldFromEntity({
             ID,
             buildEntity: buildUser,
             testName: "should get active as true from entity",
@@ -215,7 +227,7 @@ const userTest = ({
                 parentID: undefined
             }
         });
-        getFieldFromEntity({
+        test.getFieldFromEntity({
             ID,
             buildEntity: buildUser,
             testName: "should get active as false from entity",
@@ -224,7 +236,7 @@ const userTest = ({
             buildParameters: fullBuildParameters
         });
 
-        getFieldFromEntity({
+        test.getFieldFromEntity({
             ID,
             buildEntity: buildUser,
             testName: "should get merged as false from entity",
@@ -236,7 +248,7 @@ const userTest = ({
                 parentID: undefined
             }
         });
-        getFieldFromEntity({
+        test.getFieldFromEntity({
             ID,
             buildEntity: buildUser,
             testName: "should get merged as true from entity",
@@ -244,11 +256,44 @@ const userTest = ({
             getFunctionName: "getIsMerged",
             buildParameters: fullBuildParameters
         });
+        test.getFieldFromEntity({
+            ID,
+            buildEntity: buildUser,
+            testName: "should get subscription type from entity",
+            expectedData: userSubscriptions.SUBSCRIPTION_PAID,
+            getFunctionName: "getSubscriptionType",
+            buildParameters: fullBuildParameters
+        });
+        test.getFieldFromEntity({
+            ID,
+            buildEntity: buildUser,
+            testName: "should get subscription end timestamp from entity",
+            expectedData: subscriptionEndTimestamp,
+            getFunctionName: "getSubscriptionEndTimestamp",
+            buildParameters: fullBuildParameters
+        });
+        test.getFieldFromEntity({
+            ID,
+            buildEntity: buildUser,
+            testName: "should get subscription default type with outdated timestamp",
+            expectedData: userSubscriptions.SUBSCRIPTION_FREE,
+            getFunctionName: "getSubscriptionType",
+            buildParameters: {
+                ...fullBuildParameters,
+                subscriptionEndTimestamp: Date.now() - 24 * 60 * 60 * 1000
+            }
+        });
 
-        testIt("should receive user statuses object", () => {
+        test.it("should receive user statuses object", () => {
             const statuses = user.getUserStatuses();
 
-            testEqual(typeof statuses, "object", "Failed to get user statuses");
+            test.equal(typeof statuses, "object", "Failed to get user statuses");
+        });
+
+        test.it("should receive user subscriptions object", () => {
+            const statuses = user.getUserSubscriptions();
+
+            test.equal(typeof statuses, "object", "Failed to get user subscriptions");
         });
     });
 };

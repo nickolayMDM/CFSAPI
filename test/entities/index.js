@@ -3,153 +3,109 @@ const runUserLogTest = require("./userLogEntity");
 const runUserAuthorizationTest = require("./userAuthorizationEntity");
 const runFolderTest = require("./folderEntity");
 const runPostTest = require("./postEntity");
+const runServerLogTest = require("./serverLogEntity");
+const runPaymentTest = require("./paymentEntity");
 
 const run = async (
     {
-        testDescribe,
-        testIt,
-        testEqual,
-        testThrows,
-        isDefined,
-        isEmail,
-        isWithin,
-        isID,
-        isPopulatedString,
-        isPopulatedObject,
-        isBoolean,
-        isMD5Hash,
-        isJsonString,
-        isUrl,
-        isTimestamp,
-        generateDatabaseID
+        test,
+        validators,
+        database
     }
 ) => {
-    const buildCorrectEntity = ({ID, buildEntity, buildParameters = {}, testName} = {}) => {
-        testIt(testName, () => {
-            const entity = buildEntity({
-                ID,
-                ...buildParameters
+    let entityTest = {
+        ...test,
+        buildCorrectEntity: ({ID, buildEntity, buildParameters = {}, testName} = {}) => {
+            test.it(testName, () => {
+                const entity = buildEntity({
+                    ID,
+                    ...buildParameters
+                });
+                const actualID = entity.getID();
+
+                test.equal(actualID, ID, "Failed to build the entity");
             });
-            const actualID = entity.getID();
+        },
+        buildIncorrectEntity: ({buildEntity, buildParameters = {}, testName} = {}) => {
+            test.it(testName, () => {
+                const entityData = {
+                    ...buildParameters
+                };
 
-            testEqual(actualID, ID, "Failed to build the entity");
-        });
-    };
-    const buildIncorrectEntity = ({buildEntity, buildParameters = {}, testName} = {}) => {
-        testIt(testName, () => {
-            const entityData = {
-                ...buildParameters
-            };
-
-            testThrows(buildEntity.bind(this, entityData), Error, "Failed to receive an error with a faulty entity");
-        });
-    };
-
-    const getFieldFromEntity = ({ID, buildEntity, expectedData, getFunctionName, buildParameters = {}, testName}) => {
-        testIt(testName, () => {
-            const actualEntityData = {
-                ID,
-                ...buildParameters
-            };
-            const entity = buildEntity(actualEntityData);
-            const actualData = entity[getFunctionName]();
-
-            testEqual(actualData, expectedData, "Failed to retrieve entity data");
-        });
-    };
-    const getEmptyFieldFromEntity = ({ID, buildEntity, getFunctionName, buildParameters = {}, testName}) => {
-        testIt(testName, () => {
-            const entity = buildEntity({
-                ...buildParameters,
-                ID
+                test.throws(buildEntity.bind(this, entityData), Error, "Failed to receive an error with a faulty entity");
             });
+        },
+        getFieldFromEntity: ({ID, buildEntity, expectedData, getFunctionName, buildParameters = {}, testName}) => {
+            test.it(testName, () => {
+                const actualEntityData = {
+                    ID,
+                    ...buildParameters
+                };
+                const entity = buildEntity(actualEntityData);
+                const actualData = entity[getFunctionName]();
 
-            testEqual(typeof entity[getFunctionName], "undefined", "Failed to receive an error when calling an undefined getter");
-        });
-    };
+                test.equal(actualData, expectedData, "Failed to retrieve entity data");
+            });
+        },
+        getEmptyFieldFromEntity: ({ID, buildEntity, getFunctionName, buildParameters = {}, testName}) => {
+            test.it(testName, () => {
+                const entity = buildEntity({
+                    ...buildParameters,
+                    ID
+                });
 
-    const assertCollectionDataGetter = ({getterFunction}) => {
-        testIt("should get collection data", () => {
-            const collectionData = getterFunction();
+                test.equal(typeof entity[getFunctionName], "undefined", "Failed to receive an error when calling an undefined getter");
+            });
+        },
+        assertCollectionDataGetter: ({getterFunction}) => {
+            test.it("should get collection data", () => {
+                const collectionData = getterFunction();
 
-            testEqual(typeof collectionData.name, "string", "Failed to get user collection data");
-        });
+                test.equal(typeof collectionData.name, "string", "Failed to get user collection data");
+            });
+        }
     };
 
     runUserTest({
-        buildCorrectEntity,
-        buildIncorrectEntity,
-        getFieldFromEntity,
-        getEmptyFieldFromEntity,
-        assertCollectionDataGetter,
-        testDescribe,
-        testIt,
-        testEqual,
-        isDefined,
-        isEmail,
-        isWithin,
-        isID,
-        generateDatabaseID
+        test: entityTest,
+        validators,
+        database
     });
 
     runUserLogTest({
-        buildCorrectEntity,
-        buildIncorrectEntity,
-        getFieldFromEntity,
-        getEmptyFieldFromEntity,
-        assertCollectionDataGetter,
-        testDescribe,
-        isDefined,
-        isID,
-        isPopulatedString,
-        isPopulatedObject,
-        isTimestamp,
-        generateDatabaseID
+        test: entityTest,
+        validators,
+        database
     });
 
     runUserAuthorizationTest({
-        buildCorrectEntity,
-        buildIncorrectEntity,
-        getFieldFromEntity,
-        assertCollectionDataGetter,
-        testDescribe,
-        testIt,
-        testEqual,
-        isID,
-        isPopulatedString,
-        isBoolean,
-        isWithin,
-        isMD5Hash,
-        generateDatabaseID
+        test: entityTest,
+        validators,
+        database
     });
 
     runFolderTest({
-        buildCorrectEntity,
-        buildIncorrectEntity,
-        getFieldFromEntity,
-        assertCollectionDataGetter,
-        testDescribe,
-        isDefined,
-        isID,
-        isPopulatedString,
-        isBoolean,
-        generateDatabaseID
+        test: entityTest,
+        validators,
+        database
     });
 
     runPostTest({
-        buildCorrectEntity,
-        buildIncorrectEntity,
-        getFieldFromEntity,
-        getEmptyFieldFromEntity,
-        assertCollectionDataGetter,
-        testDescribe,
-        isDefined,
-        isID,
-        isPopulatedString,
-        isBoolean,
-        isJsonString,
-        isUrl,
-        generateDatabaseID
+        test: entityTest,
+        validators,
+        database
+    });
+
+    runServerLogTest({
+        test: entityTest,
+        validators,
+        database
+    });
+
+    runPaymentTest({
+        test: entityTest,
+        validators,
+        database
     });
 };
 

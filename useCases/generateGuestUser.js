@@ -1,32 +1,25 @@
 const userEntity = require("../entities/userEntity");
 const userLogEntity = require("../entities/userLogEntity");
 
+const errorPrefix = "generate guest user use case error: ";
+
 let generateGuestUserFactory = (
     {
-        isDefined,
-        isEmail,
-        isWithin,
-        isID,
-        isPopulatedString,
-        isPopulatedObject,
-        isTimestamp,
-        generateDatabaseID,
-        insertEntityIntoDatabase,
-        generateUserCookie
+        validators,
+        database,
+        userCookieGenerator,
+        RequestError
     }
 ) => {
     const insertUserLog = async ({userID, cookie, deviceValue, IP}) => {
         const userLogCollectionData = userLogEntity.getCollectionData();
-        const userLogID = generateDatabaseID({
+        const userLogID = database.generateID({
             collectionData: userLogCollectionData
         });
         const userLogDescription = "Generated as a guest";
         const buildUserLog = userLogEntity.buildUserLogFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isPopulatedObject,
-            isTimestamp
+            validators,
+            database
         });
         const userLog = buildUserLog({
             ID: userLogID,
@@ -38,7 +31,7 @@ let generateGuestUserFactory = (
                 IP
             }
         });
-        await insertEntityIntoDatabase({
+        await database.insertEntity({
             collectionData: userLogCollectionData,
             entityData: userLog
         });
@@ -46,16 +39,14 @@ let generateGuestUserFactory = (
 
     const generateUser = async ({userID, userCollectionData}) => {
         const buildUser = userEntity.buildUserFactory({
-            isDefined,
-            isEmail,
-            isWithin,
-            isID
+            validators,
+            database
         });
         const user = buildUser({
             ID: userID
         });
 
-        await insertEntityIntoDatabase({
+        await database.insertEntity({
             collectionData: userCollectionData,
             entityData: user
         });
@@ -70,17 +61,32 @@ let generateGuestUserFactory = (
             deviceString
         }
     ) => {
+        if (
+            !validators.isPopulatedString(deviceValue)
+            || !validators.isPopulatedString(IP)
+            || (
+                validators.isDefined(deviceString)
+                && !validators.isPopulatedString(deviceString)
+            )
+        ) {
+            throw new RequestError(errorPrefix + "invalid data passed", {
+                deviceValue,
+                IP,
+                deviceString
+            });
+        }
+
         const userCollectionData = userEntity.getCollectionData();
-        const userID = generateDatabaseID({
+        const userID = database.generateID({
             collectionData: userCollectionData
         });
 
-        const user = await generateUser({
+        await generateUser({
             userID,
             userCollectionData
         });
 
-        const cookie = await generateUserCookie({
+        const cookie = await userCookieGenerator.generateUserCookie({
             deviceValue,
             IP,
             userID,

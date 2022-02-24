@@ -3,37 +3,25 @@ const postEntity = require("../entities/postEntity");
 const folderEntity = require("../entities/folderEntity");
 const userLogEntity = require("../entities/userLogEntity");
 
+const errorPrefix = "merge users use case error: ";
+
 let mergeUsersFactory = (
     {
-        isDefined,
-        isEmail,
-        isWithin,
-        isID,
-        isNull,
-        isPopulatedString,
-        isPopulatedObject,
-        isTimestamp,
-        generateDatabaseID,
-        findOneFromDatabase,
-        findAllFromDatabase,
-        insertEntityIntoDatabase,
-        updateManyInDatabase,
-        updateEntityInDatabase,
-        transformEntityIntoASimpleObject
+        validators,
+        database,
+        objectHelpers,
+        RequestError
     }
 ) => {
     const insertUserLog = async ({toUser, fromUser}) => {
         const userLogCollectionData = userLogEntity.getCollectionData();
-        const userLogID = generateDatabaseID({
+        const userLogID = database.generateID({
             collectionData: userLogCollectionData
         });
         const userLogDescription = "Merged users";
         const buildUserLog = userLogEntity.buildUserLogFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isPopulatedObject,
-            isTimestamp
+            validators,
+            database
         });
         const userLog = buildUserLog({
             ID: userLogID,
@@ -43,25 +31,25 @@ let mergeUsersFactory = (
                 mergedUser: fromUser.getID()
             }
         });
-        await insertEntityIntoDatabase({
+        await database.insertEntity({
             collectionData: userLogCollectionData,
             entityData: userLog
         });
     };
 
-    const getUserEntity = async ({userID, userCollectionData}) => {
-        const userData = await findOneFromDatabase({
+    const getUserEntity = async ({filter, userCollectionData}) => {
+        const userData = await database.findOne({
             collectionData: userCollectionData,
-            filter: {
-                ID: userID
-            }
+            filter
         });
 
+        if (validators.isNull(userData)) {
+            return null;
+        }
+
         const buildUser = userEntity.buildUserFactory({
-            isDefined,
-            isEmail,
-            isWithin,
-            isID
+            validators,
+            database
         });
         return buildUser(userData);
     };
@@ -73,7 +61,7 @@ let mergeUsersFactory = (
 
     const mergeFolderFolders = async ({fromUserEntity, toUserEntity}) => {
         const folderCollectionData = folderEntity.getCollectionData();
-        const mergeFoldersData = await findAllFromDatabase({
+        const mergeFoldersData = await database.findAll({
             collectionData: folderCollectionData,
             filter: {
                 userID: fromUserEntity.getID(),
@@ -91,7 +79,7 @@ let mergeUsersFactory = (
             mergeFolderIDs.push(mergeFoldersData[key].ID);
         }
 
-        await updateManyInDatabase({
+        await database.updateMany({
             collectionData: folderCollectionData,
             filter: {ID: {$in: mergeFolderIDs}},
             updateData: {
@@ -102,7 +90,7 @@ let mergeUsersFactory = (
 
     const mergeFolderPosts = async ({fromUserEntity, toUserEntity}) => {
         const postCollectionData = postEntity.getCollectionData();
-        const mergePostsData = await findAllFromDatabase({
+        const mergePostsData = await database.findAll({
             collectionData: postCollectionData,
             filter: {
                 userID: fromUserEntity.getID(),
@@ -120,7 +108,7 @@ let mergeUsersFactory = (
             mergePostIDs.push(mergePostsData[key].ID);
         }
 
-        await updateManyInDatabase({
+        await database.updateMany({
             collectionData: postCollectionData,
             filter: {ID: {$in: mergePostIDs}},
             updateData: {
@@ -129,22 +117,37 @@ let mergeUsersFactory = (
         });
     };
 
-    const setUserAsMerged = async ({user, userCollectionData}) => {
-        let userData = transformEntityIntoASimpleObject(user);
+    const setUserAsMerged = async ({fromUser, toUser, userCollectionData}) => {
+        let userData = objectHelpers.transformEntityIntoASimpleObject(fromUser);
         userData.status = userEntity.getUserStatuses().STATUS_MERGED;
+        userData.parentID = toUser.getID();
 
         const buildUser = userEntity.buildUserFactory({
-            isDefined,
-            isEmail,
-            isWithin,
-            isID
+            validators,
+            database
         });
         const newUser = buildUser(userData);
 
-        await updateEntityInDatabase({
+        await database.updateEntity({
             collectionData: userCollectionData,
             entityData: newUser
         });
+    };
+
+    const filterAllowedFromUserStatuses = (userStatuses) => {
+        return [
+            userStatuses.STATUS_GUEST,
+            userStatuses.STATUS_AUTHORIZED,
+            userStatuses.STATUS_DISABLED,
+            userStatuses.STATUS_BANNED
+        ];
+    };
+
+    const filterAllowedToUserStatuses = (userStatuses) => {
+        return [
+            userStatuses.STATUS_GUEST,
+            userStatuses.STATUS_AUTHORIZED
+        ];
     };
 
     return async (
@@ -154,28 +157,44 @@ let mergeUsersFactory = (
         }
     ) => {
         if (
-            !isID(fromUserID)
-            || !isID(toUserID)
+            !database.isID(fromUserID)
+            || !database.isID(toUserID)
         ) {
-            throw new Error("provided input is invalid");
+            throw new RequestError(errorPrefix + "provided input is invalid", {
+                fromUserID,
+                toUserID
+            });
         }
 
         const userCollectionData = userEntity.getCollectionData();
+        const userStatuses = userEntity.getUserStatuses();
+        const allowedFromUserStatuses = filterAllowedFromUserStatuses(userStatuses);
+        const allowedToUserStatuses = filterAllowedToUserStatuses(userStatuses);
 
         const fromUserEntity = await getUserEntity({
-            userID: fromUserID,
+            filter: {
+                ID: fromUserID,
+                status: {$in: allowedFromUserStatuses}
+            },
             userCollectionData
         });
-        if (isNull(fromUserEntity)) {
-            throw new Error("merge function did not found an entity to merge from");
+        if (validators.isNull(fromUserEntity)) {
+            throw new RequestError(errorPrefix + "invalid from user", {
+                fromUserID
+            });
         }
 
         const toUserEntity = await getUserEntity({
-            userID: toUserID,
+            filter: {
+                ID: toUserID,
+                status: {$in: allowedToUserStatuses}
+            },
             userCollectionData
         });
-        if (isNull(toUserEntity)) {
-            throw new Error("merge function did not found an entity to merge to");
+        if (validators.isNull(toUserEntity)) {
+            throw new RequestError(errorPrefix + "invalid to user", {
+                toUserID
+            });
         }
 
         await mergeFolderContent({
@@ -183,7 +202,8 @@ let mergeUsersFactory = (
             toUserEntity
         });
         await setUserAsMerged({
-            user: fromUserEntity,
+            fromUser: fromUserEntity,
+            toUser: toUserEntity,
             userCollectionData
         });
 

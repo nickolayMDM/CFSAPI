@@ -2,38 +2,27 @@ const userEntity = require("../entities/userEntity");
 const userAuthorizationEntity = require("../entities/userAuthorizationEntity");
 const userLogEntity = require("../entities/userLogEntity");
 
+const errorPrefix = "get user by token use case error: ";
+
 let getUserByTokenFactory = (
     {
-        isDefined,
-        isEmail,
-        isWithin,
-        isID,
-        isNull,
-        generateDatabaseID,
-        findOneFromDatabase,
-        isPopulatedString,
-        isPopulatedObject,
-        isTimestamp,
-        isBoolean,
-        isHash,
-        isPopulatedArray,
-        insertEntityIntoDatabase,
-        generateUserCookie,
-        transformEntityIntoASimpleObject
+        validators,
+        database,
+        objectHelpers,
+        userCookieGenerator,
+        hashing,
+        RequestError
     }
 ) => {
     const insertUserLog = async ({userID, token, deviceValue, IP}) => {
         const userLogCollectionData = userLogEntity.getCollectionData();
-        const userLogID = generateDatabaseID({
+        const userLogID = database.generateID({
             collectionData: userLogCollectionData
         });
         const userLogDescription = "User login by authorization attempt";
         const buildUserLog = userLogEntity.buildUserLogFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isPopulatedObject,
-            isTimestamp
+            validators,
+            database
         });
         const userLog = buildUserLog({
             ID: userLogID,
@@ -45,10 +34,14 @@ let getUserByTokenFactory = (
                 IP
             }
         });
-        await insertEntityIntoDatabase({
+        await database.insertEntity({
             collectionData: userLogCollectionData,
             entityData: userLog
         });
+    };
+
+    const validatePasswordVariant = async (string, hash) => {
+        return await hashing.compare(string, hash);
     };
 
     return async (
@@ -56,45 +49,81 @@ let getUserByTokenFactory = (
             variant,
             token,
             deviceValue,
+            additional,
             IP
         }
     ) => {
-        const userAuthorizationData = await findOneFromDatabase({
+        const authorizationVariantsArray = Object.values(userAuthorizationEntity.getUserAuthorizationVariants());
+        if (
+            !validators.isWithin(variant, authorizationVariantsArray)
+            || !validators.isPopulatedString(token)
+            || !validators.isPopulatedString(deviceValue)
+            || !validators.isPopulatedString(IP)
+            || (
+                validators.isDefined(additional)
+                && !validators.isObject(additional)
+            )
+        ) {
+            throw new RequestError(errorPrefix + "invalid data passed", {
+                variant,
+                token,
+                deviceValue,
+                additional,
+                IP
+            });
+        }
+
+        const userAuthorizationData = await database.findOne({
             collectionData: userAuthorizationEntity.getCollectionData(),
             filter: {
                 variant,
                 token
             }
         });
-        if (isNull(userAuthorizationData)) {
-            throw new Error("user authorization method not found");
+        if (validators.isNull(userAuthorizationData)) {
+            throw new RequestError(errorPrefix + "user authorization method not found", {
+                variant,
+                token,
+                deviceValue,
+                IP,
+                additional
+            });
+        }
+
+        if (variant === userAuthorizationEntity.getUserAuthorizationVariants().VARIANT_PASSWORD) {
+            const passwordIsValid = await validatePasswordVariant(additional.password, userAuthorizationData.additional.password);
+            if (!passwordIsValid) {
+                throw new RequestError(errorPrefix + "password validation failed", {
+                    variant,
+                    token,
+                    deviceValue,
+                    IP,
+                    additional
+                });
+            }
         }
 
         const buildUserAuthorization = userAuthorizationEntity.buildUserAuthorizationFactory({
-            isID,
-            isPopulatedString,
-            isBoolean,
-            isWithin,
-            isHash,
-            isPopulatedArray
+            validators,
+            database
         });
         const userAuthorization = buildUserAuthorization(userAuthorizationData);
 
-        const userData = await findOneFromDatabase({
+        const userData = await database.findOne({
             collectionData: userEntity.getCollectionData(),
             filter: {
                 ID: userAuthorization.getUserID()
             }
         });
-        if (isNull(userData)) {
-            throw new Error("user not found");
+        if (validators.isNull(userData)) {
+            throw new RequestError(errorPrefix + "user not found", {
+                userID: userAuthorization.getUserID()
+            });
         }
 
         const buildUser = userEntity.buildUserFactory({
-            isDefined,
-            isEmail,
-            isWithin,
-            isID
+            validators,
+            database
         });
         const user = buildUser(userData);
 
@@ -105,12 +134,13 @@ let getUserByTokenFactory = (
             IP
         });
 
-        let resultData = transformEntityIntoASimpleObject(user, [
+        let resultData = objectHelpers.transformEntityIntoASimpleObject(user, [
             "name",
             "email",
-            "status"
+            "status",
+            "subscriptionType"
         ]);
-        const cookie = await generateUserCookie({
+        const cookie = await userCookieGenerator.generateUserCookie({
             deviceValue,
             IP,
             userID: user.getID()

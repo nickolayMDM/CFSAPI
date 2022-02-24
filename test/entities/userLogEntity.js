@@ -3,40 +3,28 @@ const user = require("../../entities/userEntity");
 
 const userLogTest = (
     {
-        buildCorrectEntity,
-        buildIncorrectEntity,
-        getFieldFromEntity,
-        getEmptyFieldFromEntity,
-        assertCollectionDataGetter,
-        testDescribe,
-        isDefined,
-        isID,
-        isPopulatedString,
-        isPopulatedObject,
-        isTimestamp,
-        generateDatabaseID
+        test,
+        validators,
+        database
     }
 ) => {
-    testDescribe("User Log Entity Test", () => {
-        assertCollectionDataGetter({
+    test.describe("User Log Entity Test", () => {
+        test.assertCollectionDataGetter({
             getterFunction: userLog.getCollectionData
         });
 
         const buildUserLog = userLog.buildUserLogFactory(
             {
-                isDefined,
-                isID,
-                isPopulatedString,
-                isPopulatedObject,
-                isTimestamp
+                validators,
+                database
             }
         );
         const userLogCollectionData = userLog.getCollectionData();
-        const ID = generateDatabaseID({
+        const ID = database.generateID({
             collectionName: userLogCollectionData.name
         });
         const fullBuildParameters = {
-            userID: generateDatabaseID({
+            userID: database.generateID({
                 collectionName: user.getCollectionData().name
             }),
             description: "Bob is testing",
@@ -45,7 +33,7 @@ const userLogTest = (
             }
         };
 
-        buildCorrectEntity({
+        test.buildCorrectEntity({
             ID,
             buildEntity: buildUserLog,
             testName: "should build a minimal entity",
@@ -54,19 +42,19 @@ const userLogTest = (
                 description: fullBuildParameters.description
             }
         });
-        buildCorrectEntity({
+        test.buildCorrectEntity({
             ID,
             buildEntity: buildUserLog,
             testName: "should build a full entity",
             buildParameters: fullBuildParameters
         });
 
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildUserLog,
             testName: "should throw an error when building an entity without an ID",
             buildParameters: fullBuildParameters
         });
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildUserLog,
             testName: "should throw an error when building an entity with an incorrect ID",
             buildParameters: {
@@ -74,7 +62,7 @@ const userLogTest = (
                 ID: "Bob"
             }
         });
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildUserLog,
             testName: "should throw an error when building an entity without a user ID",
             buildParameters: {
@@ -83,7 +71,7 @@ const userLogTest = (
                 userID: undefined
             }
         });
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildUserLog,
             testName: "should throw an error when building an entity with an invalid user ID",
             buildParameters: {
@@ -92,7 +80,7 @@ const userLogTest = (
                 userID: "Bob"
             }
         });
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildUserLog,
             testName: "should throw an error when building an entity without a description",
             buildParameters: {
@@ -101,7 +89,7 @@ const userLogTest = (
                 description: undefined
             }
         });
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildUserLog,
             testName: "should throw an error when building an entity with an empty description",
             buildParameters: {
@@ -110,7 +98,7 @@ const userLogTest = (
                 description: ""
             }
         });
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildUserLog,
             testName: "should throw an error when building an entity with an invalid date",
             buildParameters: {
@@ -120,7 +108,7 @@ const userLogTest = (
             }
         });
 
-        getFieldFromEntity({
+        test.getFieldFromEntity({
             ID,
             buildEntity: buildUserLog,
             testName: "should get ID from entity",
@@ -128,7 +116,7 @@ const userLogTest = (
             getFunctionName: "getID",
             buildParameters: fullBuildParameters
         });
-        getFieldFromEntity({
+        test.getFieldFromEntity({
             ID,
             buildEntity: buildUserLog,
             testName: "should get user ID from entity",
@@ -137,7 +125,7 @@ const userLogTest = (
             buildParameters: fullBuildParameters
         });
 
-        getFieldFromEntity({
+        test.getFieldFromEntity({
             ID,
             buildEntity: buildUserLog,
             testName: "should get description from entity",
@@ -146,7 +134,7 @@ const userLogTest = (
             buildParameters: fullBuildParameters
         });
 
-        getFieldFromEntity({
+        test.getFieldFromEntity({
             ID,
             buildEntity: buildUserLog,
             testName: "should get additional from entity",
@@ -154,7 +142,7 @@ const userLogTest = (
             getFunctionName: "getAdditional",
             buildParameters: fullBuildParameters
         });
-        getEmptyFieldFromEntity({
+        test.getEmptyFieldFromEntity({
             ID,
             buildEntity: buildUserLog,
             testName: "should throw an error when getting an undefined additional data from entity",

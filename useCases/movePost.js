@@ -2,40 +2,24 @@ const userLogEntity = require("../entities/userLogEntity");
 const folderEntity = require("../entities/folderEntity");
 const postEntity = require("../entities/postEntity");
 
-//TODO: check all error prefixes
 const errorPrefix = "move post use case error: ";
 
 let movePostFactory = (
     {
-        isDefined,
-        isID,
-        isPopulatedString,
-        isPopulatedObject,
-        isTimestamp,
-        isNull,
-        isBoolean,
-        isJsonString,
-        isUrl,
-        isString,
-        isStringWithin,
-        generateDatabaseID,
-        findOneFromDatabase,
-        insertEntityIntoDatabase,
-        updateInDatabase,
-        transformEntityIntoASimpleObject
+        validators,
+        database,
+        objectHelpers,
+        RequestError
     }
 ) => {
     const insertUserLog = async ({userID, postID, originalData}) => {
         const userLogCollectionData = userLogEntity.getCollectionData();
-        const userLogID = generateDatabaseID({
+        const userLogID = database.generateID({
             collectionName: userLogCollectionData.name
         });
         const buildUserLog = userLogEntity.buildUserLogFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isPopulatedObject,
-            isTimestamp
+            validators,
+            database
         });
         const userLog = buildUserLog({
             ID: userLogID,
@@ -47,7 +31,7 @@ let movePostFactory = (
             }
         });
 
-        await insertEntityIntoDatabase({
+        await database.insertEntity({
             collectionData: userLogCollectionData,
             entityData: userLog
         });
@@ -55,26 +39,21 @@ let movePostFactory = (
 
     const movePost = async ({oldPost, folderID, postCollectionData}) => {
         const buildPost = postEntity.buildPostFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isBoolean,
-            isJsonString,
-            isUrl,
-            isString,
-            isStringWithin
+            validators,
+            database
         });
 
+        const postData = objectHelpers.transformEntityIntoASimpleObject(oldPost);
 
-        const postData = transformEntityIntoASimpleObject(oldPost);
-
-        if (isID(folderID)) {
+        if (database.isID(folderID)) {
             postData.folderID = folderID;
+        } else if (database.isID(postData.folderID)) {
+            delete postData.folderID;
         }
         const post = buildPost(postData);
 
         if (typeof post.getFolderID === "function") {
-            await updateInDatabase({
+            await database.update({
                 collectionData: postCollectionData,
                 ID: post.getID(),
                 updateData: {
@@ -82,7 +61,7 @@ let movePostFactory = (
                 }
             });
         } else {
-            await updateInDatabase({
+            await database.update({
                 collectionData: postCollectionData,
                 ID: post.getID(),
                 unsetData: {
@@ -96,7 +75,7 @@ let movePostFactory = (
     };
 
     const getPostFromDatabase = async ({userID, postID, postCollectionData}) => {
-        const postData = await findOneFromDatabase({
+        const postData = await database.findOne({
             collectionData: postCollectionData,
             filter: {
                 ID: postID,
@@ -104,15 +83,13 @@ let movePostFactory = (
                 isDeleted: false
             }
         });
+        if (validators.isNull(postData)) {
+            return null;
+        }
+
         const buildPost = postEntity.buildPostFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isBoolean,
-            isJsonString,
-            isUrl,
-            isString,
-            isStringWithin
+            validators,
+            database
         });
 
         return buildPost(postData);
@@ -126,16 +103,19 @@ let movePostFactory = (
         } = {}
     ) => {
         if (
-            !isID(userID)
-            || !isID(postID)
-            || (isDefined(folderID) && !isID(folderID))
+            !database.isID(userID)
+            || !database.isID(postID)
+            || (validators.isDefined(folderID) && !database.isID(folderID))
         ) {
-            throw new Error(errorPrefix + "invalid data passed");
+            throw new RequestError(errorPrefix + "invalid data passed", {
+                userID,
+                folderID,
+                postID
+            });
         }
 
-        //TODO: add "isDeleted: false" to all database searches where only active should be displayed
-        if (isDefined(folderID)) {
-            const folderData = await findOneFromDatabase({
+        if (validators.isDefined(folderID)) {
+            const folderData = await database.findOne({
                 collectionData: folderEntity.getCollectionData(),
                 filter: {
                     ID: folderID,
@@ -144,8 +124,11 @@ let movePostFactory = (
                 }
             });
 
-            if (isNull(folderData)) {
-                throw new TypeError(errorPrefix + "folder not found");
+            if (validators.isNull(folderData)) {
+                throw new RequestError(errorPrefix + "folder not found", {
+                    folderID,
+                    userID
+                });
             }
         }
 
@@ -156,11 +139,14 @@ let movePostFactory = (
             postID,
             postCollectionData
         });
-        if (isNull(oldPost)) {
-            throw new TypeError(errorPrefix + "post not found");
+        if (validators.isNull(oldPost)) {
+            throw new RequestError(errorPrefix + "post not found", {
+                userID,
+                postID
+            });
         }
 
-        const existingPost = await findOneFromDatabase({
+        const existingPost = await database.findOne({
             collectionData: postCollectionData,
             filter: {
                 userID,
@@ -176,8 +162,13 @@ let movePostFactory = (
                 ]
             }
         });
-        if (!isNull(existingPost)) {
-            throw new TypeError(errorPrefix + "destination folder already has a similar post");
+        if (!validators.isNull(existingPost)) {
+            throw new RequestError(errorPrefix + "destination folder already has a similar post", {
+                userID,
+                folderID,
+                name: oldPost.getName(),
+                originalData: oldPost.getOriginalData()
+            });
         }
 
         const newPost = await movePost({
@@ -186,17 +177,14 @@ let movePostFactory = (
             postCollectionData
         });
 
-        //TODO: add logging to all use cases
-        //TODO: clean up use cases
-
-        const userLogOriginalData = transformEntityIntoASimpleObject(oldPost);
+        const userLogOriginalData = objectHelpers.transformEntityIntoASimpleObject(oldPost);
         await insertUserLog({
             userID,
             folderID: oldPost.getID(),
             originalData: userLogOriginalData
         });
 
-        const newPostData = transformEntityIntoASimpleObject(newPost);
+        const newPostData = objectHelpers.transformEntityIntoASimpleObject(newPost);
         return Object.freeze(newPostData);
     }
 };

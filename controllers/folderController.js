@@ -9,6 +9,9 @@ const renameFolderUseCaseFactory = require("../useCases/renameFolder");
 const moveFolderUseCaseFactory = require("../useCases/moveFolder");
 const deleteFolderUseCaseFactory = require("../useCases/deleteFolder");
 const changeFolderPinStatusUseCaseFactory = require("../useCases/changeFolderPinStatus");
+const getSimpleFolderTreeUseCaseFactory = require("../useCases/getSimpleFolderTree");
+const RequestError = require("../errors/RequestError");
+const config = require("../config");
 
 const getContents = async (req, res) => {
     const folderID = req.query.folder;
@@ -16,20 +19,10 @@ const getContents = async (req, res) => {
     let contents = {};
 
     const getFolderContentsUseCase = getFolderContentsUseCaseFactory({
-        isDefined: validators.isDefined,
-        isID: database.isID,
-        isPopulatedString: validators.isPopulatedString,
-        isPopulatedObject: validators.isPopulatedObject,
-        isTimestamp: validators.isTimestamp,
-        isBoolean: validators.isBoolean,
-        isNull: validators.isNull,
-        isPositiveInt: validators.isPositiveInt,
-        generateDatabaseID: database.generateID,
-        findAllFromDatabase: database.findAll,
-        findOneFromDatabase: database.findOne,
-        countInDatabase: database.count,
-        insertIntoDatabase: database.insert,
-        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
+        validators,
+        database,
+        objectHelpers,
+        RequestError
     });
 
     try {
@@ -54,24 +47,18 @@ const post = async (req, res) => {
     let parentID, folder;
 
     if (typeof parentIDString === "object") {
-        parentIDString = parentIDString._id;
+        parentIDString = parentIDString.ID;
     }
     if (database.isID(parentIDString)) {
         parentID = database.transformStringIDToObject(parentIDString);
     }
 
     const addFolderContentsUseCase = addFolderUseCaseFactory({
-        isDefined: validators.isDefined,
-        isID: database.isID,
-        isPopulatedString: validators.isPopulatedString,
-        isPopulatedObject: validators.isPopulatedObject,
-        isTimestamp: validators.isTimestamp,
-        isNull: validators.isNull,
-        isBoolean: validators.isBoolean,
-        generateDatabaseID: database.generateID,
-        findOneFromDatabase: database.findOne,
-        insertEntityIntoDatabase: database.insertEntity,
-        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
+        validators,
+        database,
+        objectHelpers,
+        config,
+        RequestError
     });
 
     try {
@@ -101,18 +88,10 @@ const rename = async (req, res) => {
     }
 
     const renameFolderUseCase = renameFolderUseCaseFactory({
-        isDefined: validators.isDefined,
-        isID: database.isID,
-        isPopulatedString: validators.isPopulatedString,
-        isPopulatedObject: validators.isPopulatedObject,
-        isTimestamp: validators.isTimestamp,
-        isNull: validators.isNull,
-        isBoolean: validators.isBoolean,
-        generateDatabaseID: database.generateID,
-        findOneFromDatabase: database.findOne,
-        insertEntityIntoDatabase: database.insertEntity,
-        updateEntityInDatabase: database.updateEntity,
-        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
+        validators,
+        database,
+        objectHelpers,
+        RequestError
     });
 
     try {
@@ -145,18 +124,10 @@ const move = async (req, res) => {
     }
 
     const moveFolderUseCase = moveFolderUseCaseFactory({
-        isDefined: validators.isDefined,
-        isID: database.isID,
-        isPopulatedString: validators.isPopulatedString,
-        isPopulatedObject: validators.isPopulatedObject,
-        isTimestamp: validators.isTimestamp,
-        isNull: validators.isNull,
-        isBoolean: validators.isBoolean,
-        generateDatabaseID: database.generateID,
-        findOneFromDatabase: database.findOne,
-        insertEntityIntoDatabase: database.insertEntity,
-        updateInDatabase: database.update,
-        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
+        validators,
+        database,
+        objectHelpers,
+        RequestError
     });
 
     try {
@@ -185,18 +156,10 @@ const remove = async (req, res) => {
     }
 
     const deleteFolderUseCase = deleteFolderUseCaseFactory({
-        isDefined: validators.isDefined,
-        isID: database.isID,
-        isPopulatedString: validators.isPopulatedString,
-        isNull: validators.isNull,
-        isBoolean: validators.isBoolean,
-        findOneFromDatabase: database.findOne,
-        updateInDatabase: database.update,
-        generateDatabaseID: database.generateID,
-        isPopulatedObject: validators.isPopulatedObject,
-        insertEntityIntoDatabase: database.insertEntity,
-        isTimestamp: validators.isTimestamp,
-        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
+        validators,
+        database,
+        objectHelpers,
+        RequestError
     });
 
     try {
@@ -225,21 +188,10 @@ const changePinStatus = async (req, res) => {
     }
 
     const changeFolderPinStatusUseCase = changeFolderPinStatusUseCaseFactory({
-        isDefined: validators.isDefined,
-        isID: database.isID,
-        isPopulatedString: validators.isPopulatedString,
-        isNull: validators.isNull,
-        isBoolean: validators.isBoolean,
-        isJsonString: validators.isJsonString,
-        isUrl: validators.isUrl,
-        isString: validators.isString,
-        findOneFromDatabase: database.findOne,
-        updateInDatabase: database.update,
-        insertEntityIntoDatabase: database.insertEntity,
-        generateDatabaseID: database.generateID,
-        isPopulatedObject: validators.isPopulatedObject,
-        isTimestamp: validators.isTimestamp,
-        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
+        validators,
+        database,
+        objectHelpers,
+        RequestError
     });
 
     try {
@@ -258,4 +210,28 @@ const changePinStatus = async (req, res) => {
     return res.status(200).json(post);
 };
 
-module.exports = {getContents, post, rename, move, remove, changePinStatus};
+const getSimpleFolderTree = async (req, res) => {
+    const sessionUserID = req.currentUserID;
+    let folderTree;
+
+    const getSimpleFolderTree = getSimpleFolderTreeUseCaseFactory({
+        validators,
+        database,
+        RequestError
+    });
+
+    try {
+        folderTree = await getSimpleFolderTree({
+            userID: sessionUserID
+        });
+    } catch (error) {
+        return await debug.returnServerError({
+            res,
+            error
+        });
+    }
+
+    return res.status(200).json(folderTree);
+};
+
+module.exports = {getContents, post, rename, move, remove, changePinStatus, getSimpleFolderTree};

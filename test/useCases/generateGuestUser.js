@@ -3,69 +3,95 @@ const user = require("../../entities/userEntity");
 
 const generateGuestUserUseCaseTest = (
     {
-        testDescribe,
-        testIt,
-        testEqual,
-        testBefore,
-        isCookie,
-        isDefined,
-        isEmail,
-        isWithin,
-        isID,
-        isPopulatedString,
-        isPopulatedObject,
-        isTimestamp,
-        generateDatabaseID,
-        insertEntityIntoDatabase,
-        findOneFromDatabase,
-        generateUserCookie
+        test,
+        validators,
+        database,
+        userCookieGenerator,
+        RequestError
     }
 ) => {
-    testDescribe("Generate guest user use case Test", () => {
+    test.describe("Generate guest user use case Test", () => {
         const deviceValue = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36";
         const IP = "201.20.102.152";
         const generateGuestUser = generateGuestUserFactory({
-            isDefined,
-            isEmail,
-            isWithin,
-            isID,
-            isPopulatedString,
-            isPopulatedObject,
-            isTimestamp,
-            generateDatabaseID,
-            insertEntityIntoDatabase,
-            generateUserCookie
+            validators,
+            database,
+            userCookieGenerator,
+            RequestError
         });
-        let generatedGuestResult, userDatabaseData;
 
-        testBefore(async () => {
-            generatedGuestResult = await generateGuestUser({
+        test.before();
+
+        test.it("should create a new guest user", async () => {
+            const generatedGuestResult = await generateGuestUser({
                 deviceValue,
                 IP
             });
 
-            userDatabaseData = findOneFromDatabase({
+            const userDatabaseData = database.findOne({
                 collectionData: user.getCollectionData(),
                 filter: {
                     ID: generatedGuestResult.ID
                 }
             });
+
+            test.equal(validators.isNull(userDatabaseData), false, "did not find the new user in the database");
         });
 
-        testIt("should retrieve a new guest user", () => {
-            testEqual(typeof userDatabaseData, "object", "did not find the user");
+        test.it("should create a new guest user with full data", async () => {
+            const deviceString = "Android";
+            const generatedGuestResult = await generateGuestUser({
+                deviceValue,
+                IP,
+                deviceString
+            });
+
+            const userDatabaseData = database.findOne({
+                collectionData: user.getCollectionData(),
+                filter: {
+                    ID: generatedGuestResult.ID
+                }
+            });
+
+            test.equal(validators.isNull(userDatabaseData), false, "did not find the new user in the database");
         });
 
-        testIt("should retrieve the returned ID", () => {
-            testEqual(userDatabaseData.ID, generatedGuestResult.ID, "did not find the correct ID");
+        test.it("should throw an error when creating a guest without a device value", async () => {
+            await test.rejects(generateGuestUser({
+                IP
+            }), RequestError, "Did not receive a request error");
+        });
+        test.it("should throw an error when creating a guest with an incorrect device value", async () => {
+            const deviceValue = {};
+
+            await test.rejects(generateGuestUser({
+                deviceValue,
+                IP
+            }), RequestError, "Did not receive a request error");
         });
 
-        testIt("should retrieve a cookie value", () => {
-            testEqual(isCookie(generatedGuestResult.cookie), true, "did not retrieve a cookie");
+        test.it("should throw an error when creating a guest without an IP value", async () => {
+            await test.rejects(generateGuestUser({
+                deviceValue
+            }), RequestError, "Did not receive a request error");
+        });
+        test.it("should throw an error when creating a guest with an incorrect IP value", async () => {
+            const IP = 42;
+
+            await test.rejects(generateGuestUser({
+                deviceValue,
+                IP
+            }), RequestError, "Did not receive a request error");
         });
 
-        testIt("should get the guest status from the new user", () => {
-            testEqual(userDatabaseData.status, user.getUserStatuses().STATUS_GUEST, "user has the wrong status");
+        test.it("should throw an error when creating a guest with an incorrect device string value", async () => {
+            const deviceString = {};
+
+            await test.rejects(generateGuestUser({
+                deviceValue,
+                IP,
+                deviceString
+            }), RequestError, "Did not receive a request error");
         });
     });
 };

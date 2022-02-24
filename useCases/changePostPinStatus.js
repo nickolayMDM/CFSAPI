@@ -5,35 +5,20 @@ const errorPrefix = "change post pin use case error: ";
 
 let changePostPinFactory = (
     {
-        isDefined,
-        isID,
-        isPopulatedString,
-        isPopulatedObject,
-        isTimestamp,
-        isNull,
-        isBoolean,
-        isJsonString,
-        isUrl,
-        isString,
-        isStringWithin,
-        generateDatabaseID,
-        findOneFromDatabase,
-        insertEntityIntoDatabase,
-        updateInDatabase,
-        transformEntityIntoASimpleObject
+        validators,
+        database,
+        objectHelpers,
+        RequestError
     }
 ) => {
     const insertUserLog = async ({userID, postID, originalData, isPinned}) => {
         const userLogCollectionData = userLogEntity.getCollectionData();
-        const userLogID = generateDatabaseID({
+        const userLogID = database.generateID({
             collectionName: userLogCollectionData.name
         });
         const buildUserLog = userLogEntity.buildUserLogFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isPopulatedObject,
-            isTimestamp
+            validators,
+            database
         });
         const userLog = buildUserLog({
             ID: userLogID,
@@ -46,7 +31,7 @@ let changePostPinFactory = (
             }
         });
 
-        await insertEntityIntoDatabase({
+        await database.insertEntity({
             collectionData: userLogCollectionData,
             entityData: userLog
         });
@@ -54,24 +39,18 @@ let changePostPinFactory = (
 
     const changePostPinStatus = async ({oldPost, isPinned, postCollectionData}) => {
         const buildPost = postEntity.buildPostFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isBoolean,
-            isJsonString,
-            isUrl,
-            isString,
-            isStringWithin
+            validators,
+            database
         });
 
-        const postData = transformEntityIntoASimpleObject(oldPost);
+        const postData = objectHelpers.transformEntityIntoASimpleObject(oldPost);
 
-        if (isBoolean(isPinned)) {
+        if (validators.isBoolean(isPinned)) {
             postData.isPinned = isPinned;
         }
         const post = buildPost(postData);
 
-        await updateInDatabase({
+        await database.update({
             collectionData: postCollectionData,
             ID: post.getID(),
             updateData: {
@@ -83,7 +62,7 @@ let changePostPinFactory = (
     };
 
     const getPostFromDatabase = async ({userID, postID, postCollectionData}) => {
-        const postData = await findOneFromDatabase({
+        const postData = await database.findOne({
             collectionData: postCollectionData,
             filter: {
                 ID: postID,
@@ -91,15 +70,13 @@ let changePostPinFactory = (
                 isDeleted: false
             }
         });
+        if (validators.isNull(postData)) {
+            return null;
+        }
+
         const buildPost = postEntity.buildPostFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isBoolean,
-            isJsonString,
-            isUrl,
-            isString,
-            isStringWithin
+            validators,
+            database
         });
 
         return buildPost(postData);
@@ -113,11 +90,15 @@ let changePostPinFactory = (
         } = {}
     ) => {
         if (
-            !isID(userID)
-            || !isID(postID)
-            || !isBoolean(isPinned)
+            !database.isID(userID)
+            || !database.isID(postID)
+            || !validators.isBoolean(isPinned)
         ) {
-            throw new Error(errorPrefix + "invalid data passed");
+            throw new RequestError(errorPrefix + "invalid data passed", {
+                userID,
+                postID,
+                isPinned
+            });
         }
 
         const postCollectionData = postEntity.getCollectionData();
@@ -127,8 +108,11 @@ let changePostPinFactory = (
             postID,
             postCollectionData
         });
-        if (isNull(oldPost)) {
-            throw new TypeError(errorPrefix + "post not found");
+        if (validators.isNull(oldPost)) {
+            throw new RequestError(errorPrefix + "post not found", {
+                userID,
+                postID
+            });
         }
 
         const newPost = await changePostPinStatus({
@@ -137,14 +121,14 @@ let changePostPinFactory = (
             postCollectionData
         });
 
-        const userLogOriginalData = transformEntityIntoASimpleObject(oldPost);
+        const userLogOriginalData = objectHelpers.transformEntityIntoASimpleObject(oldPost);
         await insertUserLog({
             userID,
             folderID: oldPost.getID(),
             originalData: userLogOriginalData
         });
 
-        const newPostData = transformEntityIntoASimpleObject(newPost);
+        const newPostData = objectHelpers.transformEntityIntoASimpleObject(newPost);
         return Object.freeze(newPostData);
     }
 };

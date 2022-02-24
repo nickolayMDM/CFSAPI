@@ -3,40 +3,54 @@ const collectionName = "serverLogs";
 
 const buildServerLogFactory = (
     {
-        isID,
-        isPopulatedString,
-        isTimestamp
+        database,
+        validators
     }
 ) => {
     return (
         {
             ID,
+            name,
             message,
             stack,
+            payload,
             timestamp = Date.now()
         } = {}
     ) => {
         let serverLogObject = {
             getID: () => ID,
+            getName: () => name,
             getMessage: () => message,
             getStack: () => stack,
             getTimestamp: () => timestamp
         };
 
-        if (!isID(ID)) {
+        if (!database.isID(ID)) {
             throw new Error(errorPrefix + "ID value must be a valid identifier.");
         }
 
-        if (!isPopulatedString(message)) {
+        if (!validators.isPopulatedString(name)) {
+            throw new Error(errorPrefix + "name has to be a non-empty string.");
+        }
+
+        if (!validators.isPopulatedString(message)) {
             throw new Error(errorPrefix + "message has to be a non-empty string.");
         }
 
-        if (!isPopulatedString(stack)) {
+        if (!validators.isPopulatedString(stack)) {
             throw new Error(errorPrefix + "stack has to be a non-empty string.");
         }
 
-        if (!isTimestamp(timestamp)) {
+        if (!validators.isTimestamp(timestamp)) {
             throw new Error(errorPrefix + "timestamp has an invalid value.");
+        }
+
+        if (validators.isDefined(payload)) {
+            if (!validators.isPopulatedObject(payload)) {
+                throw new Error(errorPrefix + "payload should be either undefined or a populated object.");
+            }
+
+            serverLogObject.getPayload = () => payload;
         }
 
         return Object.freeze(serverLogObject);

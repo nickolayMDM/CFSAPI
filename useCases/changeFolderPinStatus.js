@@ -1,38 +1,24 @@
 const userLogEntity = require("../entities/userLogEntity");
 const folderEntity = require("../entities/folderEntity");
 
-const errorPrefix = "change folder pin use case error: ";
+const errorPrefix = "change folder pin status use case error: ";
 
 let changeFolderPinFactory = (
     {
-        isDefined,
-        isID,
-        isPopulatedString,
-        isPopulatedObject,
-        isTimestamp,
-        isNull,
-        isBoolean,
-        isJsonString,
-        isUrl,
-        isString,
-        generateDatabaseID,
-        findOneFromDatabase,
-        insertEntityIntoDatabase,
-        updateInDatabase,
-        transformEntityIntoASimpleObject
+        validators,
+        database,
+        objectHelpers,
+        RequestError
     }
 ) => {
     const insertUserLog = async ({userID, folderID, originalData, isPinned}) => {
         const userLogCollectionData = userLogEntity.getCollectionData();
-        const userLogID = generateDatabaseID({
+        const userLogID = database.generateID({
             collectionName: userLogCollectionData.name
         });
         const buildUserLog = userLogEntity.buildUserLogFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isPopulatedObject,
-            isTimestamp
+            validators,
+            database
         });
         const userLog = buildUserLog({
             ID: userLogID,
@@ -45,7 +31,7 @@ let changeFolderPinFactory = (
             }
         });
 
-        await insertEntityIntoDatabase({
+        await database.insertEntity({
             collectionData: userLogCollectionData,
             entityData: userLog
         });
@@ -53,23 +39,18 @@ let changeFolderPinFactory = (
 
     const changeFolderPinStatus = async ({oldFolder, isPinned, folderCollectionData}) => {
         const buildFolder = folderEntity.buildFolderFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isBoolean,
-            isJsonString,
-            isUrl,
-            isString
+            validators,
+            database
         });
 
-        const folderData = transformEntityIntoASimpleObject(oldFolder);
+        const folderData = objectHelpers.transformEntityIntoASimpleObject(oldFolder);
 
-        if (isBoolean(isPinned)) {
+        if (validators.isBoolean(isPinned)) {
             folderData.isPinned = isPinned;
         }
         const folder = buildFolder(folderData);
 
-        await updateInDatabase({
+        await database.update({
             collectionData: folderCollectionData,
             ID: folder.getID(),
             updateData: {
@@ -81,7 +62,7 @@ let changeFolderPinFactory = (
     };
 
     const getFolderFromDatabase = async ({userID, folderID, folderCollectionData}) => {
-        const folderData = await findOneFromDatabase({
+        const folderData = await database.findOne({
             collectionData: folderCollectionData,
             filter: {
                 ID: folderID,
@@ -89,17 +70,16 @@ let changeFolderPinFactory = (
                 isDeleted: false
             }
         });
-        const buildPost = folderEntity.buildFolderFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isBoolean,
-            isJsonString,
-            isUrl,
-            isString
+        if (validators.isNull(folderData)) {
+            return null;
+        }
+
+        const buildFolder = folderEntity.buildFolderFactory({
+            validators,
+            database
         });
 
-        return buildPost(folderData);
+        return buildFolder(folderData);
     };
 
     return async (
@@ -110,11 +90,15 @@ let changeFolderPinFactory = (
         } = {}
     ) => {
         if (
-            !isID(userID)
-            || !isID(folderID)
-            || !isBoolean(isPinned)
+            !database.isID(userID)
+            || !database.isID(folderID)
+            || !validators.isBoolean(isPinned)
         ) {
-            throw new Error(errorPrefix + "invalid data passed");
+            throw new RequestError(errorPrefix + "invalid data passed", {
+                userID,
+                folderID,
+                isPinned
+            });
         }
 
         const folderCollectionData = folderEntity.getCollectionData();
@@ -124,8 +108,11 @@ let changeFolderPinFactory = (
             folderID,
             folderCollectionData
         });
-        if (isNull(oldFolder)) {
-            throw new TypeError(errorPrefix + "folder not found");
+        if (validators.isNull(oldFolder)) {
+            throw new RequestError(errorPrefix + "folder not found", {
+                userID,
+                folderID
+            });
         }
 
         const newFolder = await changeFolderPinStatus({
@@ -134,14 +121,14 @@ let changeFolderPinFactory = (
             folderCollectionData
         });
 
-        const userLogOriginalData = transformEntityIntoASimpleObject(oldFolder);
+        const userLogOriginalData = objectHelpers.transformEntityIntoASimpleObject(oldFolder);
         await insertUserLog({
             userID,
             folderID: oldFolder.getID(),
             originalData: userLogOriginalData
         });
 
-        const newFolderData = transformEntityIntoASimpleObject(newFolder);
+        const newFolderData = objectHelpers.transformEntityIntoASimpleObject(newFolder);
         return Object.freeze(newFolderData);
     }
 };

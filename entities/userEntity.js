@@ -7,6 +7,14 @@ const STATUS_MERGED = "merged";
 const STATUS_BANNED = "banned";
 const STATUS_DISABLED = "disabled";
 
+const SUBSCRIPTION_FREE = "free";
+const SUBSCRIPTION_PRO = "pro";
+const AVAILABLE_SUBSCRIPTIONS = [
+    SUBSCRIPTION_FREE,
+    SUBSCRIPTION_PRO
+];
+const DEFAULT_SUBSCRIPTION = SUBSCRIPTION_FREE;
+
 const AVAILABLE_STATUSES = [
     STATUS_GUEST,
     STATUS_AUTHORIZED,
@@ -28,10 +36,8 @@ const CHILDREN_STATUSES = [
 
 const buildUserFactory = (
     {
-        isDefined,
-        isEmail,
-        isWithin,
-        isID
+        database,
+        validators
     }
 ) => {
     return (
@@ -40,21 +46,24 @@ const buildUserFactory = (
             name,
             email,
             status = STATUS_GUEST,
+            subscriptionType = DEFAULT_SUBSCRIPTION,
+            subscriptionEndTimestamp,
             parentID
         } = {}
     ) => {
         let userObject = {
             getID: () => ID,
             getStatus: () => status,
-            getIsActive: () => !isWithin(status, DISABLED_STATUSES),
-            getIsMerged: () => status === STATUS_MERGED
+            getIsActive: () => !validators.isWithin(status, DISABLED_STATUSES),
+            getIsMerged: () => status === STATUS_MERGED,
+            getSubscriptionType: () => subscriptionType
         };
 
-        if (!isID(ID)) {
+        if (!database.isID(ID)) {
             throw new Error(errorPrefix + "ID value must be a valid identifier.");
         }
 
-        if (isDefined(name)) {
+        if (validators.isDefined(name)) {
             if (typeof name !== "string") {
                 throw new Error(errorPrefix + "name field has to be a string.");
             }
@@ -66,28 +75,41 @@ const buildUserFactory = (
             userObject.getName = () => name;
         }
 
-        if (isDefined(email)) {
-            if (!isEmail(email)) {
+        if (validators.isDefined(email)) {
+            if (!validators.isEmail(email)) {
                 throw new Error(errorPrefix + "invalid email format.");
             }
 
             userObject.getEmail = () => email;
         }
 
-        if (status === STATUS_MERGED && !isID(parentID)) {
+        if (status === STATUS_MERGED && !database.isID(parentID)) {
             throw new Error(errorPrefix + "merged users need parent IDs.");
         }
 
-        if (!isWithin(status, AVAILABLE_STATUSES)) {
+        if (!validators.isWithin(status, AVAILABLE_STATUSES)) {
             throw new Error(errorPrefix + "wrong status value.");
         }
 
-        if (isDefined(parentID)) {
-            if (!isWithin(status, CHILDREN_STATUSES)) {
+        if (!validators.isWithin(subscriptionType, AVAILABLE_SUBSCRIPTIONS)) {
+            throw new Error(errorPrefix + "wrong subscription value.");
+        }
+        if (subscriptionType === SUBSCRIPTION_PRO) {
+            if (validators.isTimestamp(subscriptionEndTimestamp)) {
+                if (Date.now() > subscriptionEndTimestamp) {
+                    subscriptionType = DEFAULT_SUBSCRIPTION;
+                }
+
+                userObject.getSubscriptionEndTimestamp = () => subscriptionEndTimestamp;
+            }
+        }
+
+        if (validators.isDefined(parentID)) {
+            if (!validators.isWithin(status, CHILDREN_STATUSES)) {
                 throw new Error(errorPrefix + "parent ID should only be defined for merged users.");
             }
 
-            if (!isID(parentID)) {
+            if (!database.isID(parentID)) {
                 throw new Error(errorPrefix + "parent value must be a valid identifier.");
             }
 
@@ -119,4 +141,12 @@ const getUserStatuses = () => {
     return resultObject;
 };
 
-module.exports = {buildUserFactory, getCollectionData, getUserStatuses};
+const getUserSubscriptions = () => {
+    let resultObject = {};
+    resultObject.SUBSCRIPTION_FREE = SUBSCRIPTION_FREE;
+    resultObject.SUBSCRIPTION_PRO = SUBSCRIPTION_PRO;
+
+    return resultObject;
+};
+
+module.exports = {buildUserFactory, getCollectionData, getUserStatuses, getUserSubscriptions};

@@ -5,35 +5,20 @@ const errorPrefix = "delete post use case error: ";
 
 let deletePostFactory = (
     {
-        isDefined,
-        isID,
-        isPopulatedString,
-        isNull,
-        isBoolean,
-        isJsonString,
-        isUrl,
-        isString,
-        isStringWithin,
-        findOneFromDatabase,
-        updateInDatabase,
-        insertEntityIntoDatabase,
-        generateDatabaseID,
-        isPopulatedObject,
-        isTimestamp,
-        transformEntityIntoASimpleObject
+        validators,
+        database,
+        objectHelpers,
+        RequestError
     }
 ) => {
     const insertUserLog = async ({userID, postID}) => {
         const userLogCollectionData = userLogEntity.getCollectionData();
-        const userLogID = generateDatabaseID({
+        const userLogID = database.generateID({
             collectionName: userLogCollectionData.name
         });
         const buildUserLog = userLogEntity.buildUserLogFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isPopulatedObject,
-            isTimestamp
+            validators,
+            database
         });
         const userLog = buildUserLog({
             ID: userLogID,
@@ -43,7 +28,7 @@ let deletePostFactory = (
                 postID
             }
         });
-        await insertEntityIntoDatabase({
+        await database.insertEntity({
             collectionData: userLogCollectionData,
             entityData: userLog
         });
@@ -53,18 +38,12 @@ let deletePostFactory = (
         postData.isDeleted = true;
 
         const buildPost = postEntity.buildPostFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isBoolean,
-            isJsonString,
-            isUrl,
-            isString,
-            isStringWithin
+            validators,
+            database
         });
         const post = buildPost(postData);
 
-        await updateInDatabase({
+        await database.update({
             collectionData: postCollectionData,
             ID: post.getID(),
             updateData: {
@@ -82,14 +61,17 @@ let deletePostFactory = (
         } = {}
     ) => {
         if (
-            !isID(userID)
-            || !isID(postID)
+            !database.isID(userID)
+            || !database.isID(postID)
         ) {
-            throw new Error(errorPrefix + "invalid data passed");
+            throw new RequestError(errorPrefix + "invalid data passed", {
+                userID,
+                postID
+            });
         }
         const postCollectionData = postEntity.getCollectionData();
 
-        const postData = await findOneFromDatabase({
+        const postData = await database.findOne({
             collectionData: postCollectionData,
             filter: {
                 userID,
@@ -97,8 +79,11 @@ let deletePostFactory = (
                 isDeleted: false
             }
         });
-        if (isNull(postData)) {
-            throw new Error(errorPrefix + "post not found");
+        if (validators.isNull(postData)) {
+            throw new RequestError(errorPrefix + "post not found", {
+                userID,
+                postID
+            });
         }
 
         const post = await deletePost({
@@ -111,7 +96,7 @@ let deletePostFactory = (
             postID
         });
 
-        const newPostData = transformEntityIntoASimpleObject(post, [
+        const newPostData = objectHelpers.transformEntityIntoASimpleObject(post, [
             "ID",
             "userID",
             "name",

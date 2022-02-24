@@ -43,6 +43,13 @@ const initiate = (app) => {
         type: "put",
         func: folderController.changePinStatus
     });
+
+    route.setRoute({
+        app,
+        path: "/getSimpleFolderTree",
+        type: "get",
+        func: folderController.getSimpleFolderTree
+    });
 };
 
 module.exports = initiate;

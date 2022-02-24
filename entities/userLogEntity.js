@@ -5,11 +5,8 @@ const collectionName = "userLogs";
 
 const buildUserLogFactory = (
     {
-        isDefined,
-        isID,
-        isPopulatedString,
-        isPopulatedObject,
-        isTimestamp
+        database,
+        validators
     }
 ) => {
     return (
@@ -28,27 +25,27 @@ const buildUserLogFactory = (
             getTimestamp: () => timestamp
         };
 
-        if (!isID(ID)) {
+        if (!database.isID(ID)) {
             throw new Error(errorPrefix + "ID value must be a valid identifier.");
         }
 
-        if (!isID(userID)) {
+        if (!database.isID(userID)) {
             throw new Error(errorPrefix + "user ID value must be a valid identifier.");
         }
 
-        if (!isPopulatedString(description)) {
+        if (!validators.isPopulatedString(description)) {
             throw new Error(errorPrefix + "description has to be a non-empty string.");
         }
 
-        if (isDefined(additional)) {
-            if (!isPopulatedObject(additional)) {
+        if (validators.isDefined(additional)) {
+            if (!validators.isPopulatedObject(additional)) {
                 throw new Error(errorPrefix + "additional data has to be an non-empty object.");
             }
 
             userLogObject.getAdditional = () => additional;
         }
 
-        if (!isTimestamp(timestamp)) {
+        if (!validators.isTimestamp(timestamp)) {
             throw new Error(errorPrefix + "timestamp has an invalid value.");
         }
 

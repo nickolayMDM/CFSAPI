@@ -5,34 +5,20 @@ const errorPrefix = "set post note use case error: ";
 
 let setPostNoteFactory = (
     {
-        isDefined,
-        isID,
-        isPopulatedString,
-        isPopulatedObject,
-        isTimestamp,
-        isBoolean,
-        isJsonString,
-        isUrl,
-        isString,
-        isStringWithin,
-        generateDatabaseID,
-        findOneFromDatabase,
-        insertEntityIntoDatabase,
-        updateEntityInDatabase,
-        transformEntityIntoASimpleObject
+        validators,
+        database,
+        objectHelpers,
+        RequestError
     }
 ) => {
     const insertUserLog = async ({userID, postID, originalData}) => {
         const userLogCollectionData = userLogEntity.getCollectionData();
-        const userLogID = generateDatabaseID({
+        const userLogID = database.generateID({
             collectionName: userLogCollectionData.name
         });
         const buildUserLog = userLogEntity.buildUserLogFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isPopulatedObject,
-            isTimestamp
+            validators,
+            database
         });
         const userLog = buildUserLog({
             ID: userLogID,
@@ -44,29 +30,23 @@ let setPostNoteFactory = (
             }
         });
 
-        await insertEntityIntoDatabase({
+        await database.insertEntity({
             collectionData: userLogCollectionData,
             entityData: userLog
         });
     };
 
     const setPostNote = async ({oldPost, note, postCollectionData}) => {
-        let postData = transformEntityIntoASimpleObject(oldPost);
+        let postData = objectHelpers.transformEntityIntoASimpleObject(oldPost);
         postData.note = note;
 
         const buildPost = postEntity.buildPostFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isBoolean,
-            isJsonString,
-            isUrl,
-            isString,
-            isStringWithin
+            validators,
+            database
         });
         const post = buildPost(postData);
 
-        await updateEntityInDatabase({
+        await database.updateEntity({
             collectionData: postCollectionData,
             entityData: post
         });
@@ -75,7 +55,7 @@ let setPostNoteFactory = (
     };
 
     const getPostFromDatabase = async ({userID, postID, postCollectionData}) => {
-        const postData = await findOneFromDatabase({
+        const postData = await database.findOne({
             collectionData: postCollectionData,
             filter: {
                 ID: postID,
@@ -84,14 +64,8 @@ let setPostNoteFactory = (
             }
         });
         const buildPost = postEntity.buildPostFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isBoolean,
-            isJsonString,
-            isUrl,
-            isString,
-            isStringWithin
+            validators,
+            database
         });
 
         return buildPost(postData);
@@ -105,11 +79,15 @@ let setPostNoteFactory = (
         } = {}
     ) => {
         if (
-            !isID(userID)
-            || !isID(postID)
-            || !isString(note)
+            !database.isID(userID)
+            || !database.isID(postID)
+            || !validators.isString(note)
         ) {
-            throw new Error(errorPrefix + "invalid data passed");
+            throw new RequestError(errorPrefix + "invalid data passed", {
+                note,
+                userID,
+                postID
+            });
         }
         const postCollectionData = postEntity.getCollectionData();
         const oldPost = await getPostFromDatabase({
@@ -124,14 +102,14 @@ let setPostNoteFactory = (
             postCollectionData
         });
 
-        const userLogOriginalData = transformEntityIntoASimpleObject(oldPost);
+        const userLogOriginalData = objectHelpers.transformEntityIntoASimpleObject(oldPost);
         await insertUserLog({
             userID,
             postID: oldPost.getID(),
             originalData: userLogOriginalData
         });
 
-        const newPostData = transformEntityIntoASimpleObject(newPost);
+        const newPostData = objectHelpers.transformEntityIntoASimpleObject(newPost);
         return Object.freeze(newPostData);
     }
 };

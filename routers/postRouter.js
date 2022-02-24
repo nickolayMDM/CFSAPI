@@ -50,13 +50,6 @@ const initiate = (app) => {
         type: "put",
         func: postController.setNote
     });
-
-    route.setRoute({
-        app,
-        path: "/getSearchedPosts",
-        type: "get",
-        func: postController.getSearchedList
-    });
 };
 
 module.exports = initiate;

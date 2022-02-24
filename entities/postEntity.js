@@ -5,14 +5,8 @@ const collectionName = "posts";
 
 const buildPostFactory = (
     {
-        isDefined,
-        isID,
-        isPopulatedString,
-        isBoolean,
-        isJsonString,
-        isUrl,
-        isString,
-        isStringWithin
+        database,
+        validators
     }
 ) => {
     return (
@@ -40,54 +34,54 @@ const buildPostFactory = (
             getIsPinned: () => isPinned
         };
 
-        if (!isID(ID)) {
+        if (!database.isID(ID)) {
             throw new Error(errorPrefix + "ID value must be a valid identifier.");
         }
 
-        if (!isID(userID)) {
+        if (!database.isID(userID)) {
             throw new Error(errorPrefix + "user ID value must be a valid identifier.");
         }
 
-        if (isDefined(folderID)) {
-            if (!isID(folderID)) {
+        if (validators.isDefined(folderID)) {
+            if (!database.isID(folderID)) {
                 throw new Error(errorPrefix + "folder ID value must be a valid identifier.");
             }
 
             postObject.getFolderID = () => folderID;
         }
 
-        if (!isJsonString(originalData)) {
+        if (!validators.isJsonString(originalData)) {
             throw new Error(errorPrefix + "original data value must be a json string.");
         }
 
-        if (!isUrl(url)) {
+        if (!validators.isUrl(url)) {
             throw new Error(errorPrefix + "url value must be a valid url.");
         }
 
-        if (!isPopulatedString(name)) {
+        if (!validators.isPopulatedString(name)) {
             throw new Error(errorPrefix + "name value must be a populated string.");
         }
 
-        if (!isString(note)) {
+        if (!validators.isString(note)) {
             throw new Error(errorPrefix + "note value must be a string.");
         }
-        if (!isStringWithin(note, 0, 80)) {
+        if (!validators.isStringWithin(note, 0, 80)) {
             throw new Error(errorPrefix + "note maximum length must be 80 characters.");
         }
 
-        if (isDefined(author)) {
-            if (!isPopulatedString(author)) {
+        if (validators.isDefined(author)) {
+            if (!validators.isPopulatedString(author)) {
                 throw new Error(errorPrefix + "author name must be a populated string.");
             }
 
             postObject.getAuthor = () => author;
         }
 
-        if (!isBoolean(isDeleted)) {
+        if (!validators.isBoolean(isDeleted)) {
             throw new Error(errorPrefix + "is deleted value has to be a boolean.");
         }
 
-        if (!isBoolean(isPinned)) {
+        if (!validators.isBoolean(isPinned)) {
             throw new Error(errorPrefix + "is pinned value has to be a boolean.");
         }
 

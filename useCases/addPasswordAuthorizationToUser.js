@@ -2,38 +2,26 @@ const userEntity = require("../entities/userEntity");
 const userAuthorizationEntity = require("../entities/userAuthorizationEntity");
 const userLogEntity = require("../entities/userLogEntity");
 
+const errorPrefix = "add password authorization to user use case error: ";
+
 let addPasswordAuthorizationToUserFactory = (
     {
-        isDefined,
-        isEmail,
-        isWithin,
-        isID,
-        isPopulatedString,
-        isPopulatedObject,
-        isTimestamp,
-        generateDatabaseID,
-        insertEntityIntoDatabase,
-        isBoolean,
-        isPopulatedArray,
-        isNull,
-        isHash,
-        findOneFromDatabase,
-        updateEntityInDatabase,
-        transformEntityIntoASimpleObject
+        validators,
+        database,
+        objectHelpers,
+        hashing,
+        RequestError
     }
 ) => {
     const insertUserLog = async ({userID, cookie, deviceValue, IP}) => {
         const userLogCollectionData = userLogEntity.getCollectionData();
-        const userLogID = generateDatabaseID({
+        const userLogID = database.generateID({
             collectionData: userLogCollectionData
         });
         const userLogDescription = "Added password authorization method to a user";
         const buildUserLog = userLogEntity.buildUserLogFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isPopulatedObject,
-            isTimestamp
+            validators,
+            database
         });
         const userLog = buildUserLog({
             ID: userLogID,
@@ -45,35 +33,35 @@ let addPasswordAuthorizationToUserFactory = (
                 IP
             }
         });
-        await insertEntityIntoDatabase({
+        await database.insertEntity({
             collectionData: userLogCollectionData,
             entityData: userLog
         });
     };
 
     const getUser = async ({userID, userCollectionData}) => {
-        const userData = await findOneFromDatabase({
+        const userData = await database.findOne({
             collectionData: userCollectionData,
             filter: {
                 ID: userID
             }
         });
-        if (isNull(userData)) {
-            throw new Error("user was not found in the database");
+        if (validators.isNull(userData)) {
+            throw new RequestError(errorPrefix + "user was not found in the database", {
+                userID
+            });
         }
 
         const buildUser = userEntity.buildUserFactory({
-            isDefined,
-            isEmail,
-            isWithin,
-            isID
+            validators,
+            database
         });
 
         return buildUser(userData);
     };
 
     const getUserPasswordAuthorization = async ({userID, userAuthorizationCollectionData}) => {
-        const userAuthorizationData = await findOneFromDatabase({
+        const userAuthorizationData = await database.findOne({
             collectionData: userAuthorizationCollectionData,
             filter: {
                 userID: userID,
@@ -85,26 +73,25 @@ let addPasswordAuthorizationToUserFactory = (
         return userAuthorizationData;
     };
 
-    const addUserAuthorization = async ({userID, token, userAuthorizationCollectionData}) => {
+    const addUserAuthorization = async ({userID, token, password, userAuthorizationCollectionData}) => {
         const buildUserAuthorization = userAuthorizationEntity.buildUserAuthorizationFactory({
-            isID,
-            isPopulatedString,
-            isBoolean,
-            isWithin,
-            isHash,
-            isPopulatedArray
+            validators,
+            database
         });
-        const userAuthorizationID = generateDatabaseID({
+        const userAuthorizationID = database.generateID({
             collectionData: userAuthorizationCollectionData
         });
         const userAuthorization = buildUserAuthorization({
             ID: userAuthorizationID,
             userID,
             variant: "password",
-            token
+            token,
+            additional: {
+                password
+            }
         });
 
-        await insertEntityIntoDatabase({
+        await database.insertEntity({
             collectionData: userAuthorizationCollectionData,
             entityData: userAuthorization
         });
@@ -114,7 +101,7 @@ let addPasswordAuthorizationToUserFactory = (
 
     const updateUserData = async ({user, email, name, userCollectionData}) => {
         const userStatuses = userEntity.getUserStatuses();
-        const oldUser = transformEntityIntoASimpleObject(user);
+        const oldUser = objectHelpers.transformEntityIntoASimpleObject(user);
 
         oldUser.email = email;
         oldUser.name = name;
@@ -123,17 +110,19 @@ let addPasswordAuthorizationToUserFactory = (
         }
 
         const buildUser = userEntity.buildUserFactory({
-            isDefined,
-            isEmail,
-            isWithin,
-            isID
+            validators,
+            database
         });
         const newUser = buildUser(oldUser);
 
-        await updateEntityInDatabase({
+        await database.updateEntity({
             collectionData: userCollectionData,
             entityData: newUser
         });
+    };
+
+    const securePassword = async (password) => {
+        return await hashing.hash(password);
     };
 
     return async (
@@ -146,6 +135,26 @@ let addPasswordAuthorizationToUserFactory = (
             IP
         }
     ) => {
+        if (
+            !database.isID(userID)
+            || !validators.isPopulatedString(login)
+            || !validators.isPopulatedString(password)
+            || !validators.isPopulatedString(deviceValue)
+            || (
+                validators.isDefined(email) && !validators.isEmail(email)
+            )
+            || !validators.isPopulatedString(IP)
+        ) {
+            throw new RequestError(errorPrefix + "invalid data passed", {
+                userID,
+                login,
+                email,
+                password,
+                deviceValue,
+                IP
+            });
+        }
+
         const userCollectionData = userEntity.getCollectionData();
         const userAuthorizationCollectionData = userAuthorizationEntity.getCollectionData();
 
@@ -153,19 +162,27 @@ let addPasswordAuthorizationToUserFactory = (
             userID,
             userCollectionData
         });
+        if (validators.isNull(user)) {
+            throw new RequestError(errorPrefix + "user with given ID was not found", {
+                userID
+            });
+        }
         const existingUserPasswordAuthorization = await getUserPasswordAuthorization({
             userID,
             userAuthorizationCollectionData
         });
-        if (!isNull(existingUserPasswordAuthorization)) {
-            throw new Error("user already has a password authorization method");
+        if (!validators.isNull(existingUserPasswordAuthorization)) {
+            throw new RequestError(errorPrefix + "user already has a password authorization method", {
+                userID
+            });
         }
 
-
-        const token = [login, password].join(",");
+        const token = login;
+        const hashedPassword = await securePassword(password);
         await addUserAuthorization({
             userID: user.getID(),
             token,
+            password: hashedPassword,
             userAuthorizationCollectionData
         });
 

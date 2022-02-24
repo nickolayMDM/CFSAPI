@@ -9,26 +9,38 @@ const movePostUseCaseFactory = require("../useCases/movePost");
 const deletePostUseCaseFactory = require("../useCases/deletePost");
 const changePostPinStatusUseCaseFactory = require("../useCases/changePostPinStatus");
 const setPostNoteUseCaseFactory = require("../useCases/setPostNote");
-const getSearchedPostsFactory = require("../useCases/getSearchedPosts");
 const getInputDetailsFactory = require("../useCases/getInputDetails");
+const getSimpleFolderTreeFactory = require("../useCases/getSimpleFolderTree");
 const managerConnector = require("../adapters/managerConnectorAdapter");
 const imageFileAdapter = require("../adapters/fileAdapters/imageFileAdapter");
+const RequestError = require("../errors/RequestError");
 
 const getInputDetails = async (req, res) => {
     const postInput = req.query.input;
     const sessionUserID = req.currentUserID;
-    let post;
+    let post, folderTree;
 
     const getInputDetailsUseCase = getInputDetailsFactory({
-        isID: database.isID,
-        isPopulatedString: validators.isPopulatedString,
-        processPostInput: managerConnector.getPostDetailsFromInput
+        validators,
+        database,
+        processPostInput: managerConnector.getPostDetailsFromInput,
+        RequestError
+    });
+
+    const getSimpleFolderTreeUseCase = getSimpleFolderTreeFactory({
+        validators,
+        database,
+        RequestError
     });
 
     try {
         post = await getInputDetailsUseCase({
             userID: sessionUserID,
             postInput
+        });
+
+        folderTree = await getSimpleFolderTreeUseCase({
+            userID: sessionUserID
         });
     } catch (error) {
         return await debug.returnServerError({
@@ -37,7 +49,10 @@ const getInputDetails = async (req, res) => {
         });
     }
 
-    return res.status(200).json(post);
+    return res.status(200).json({
+        post,
+        folderTree
+    });
 };
 
 const add = async (req, res) => {
@@ -56,23 +71,12 @@ const add = async (req, res) => {
     }
 
     const addPostContentsUseCase = addPostUseCaseFactory({
-        isDefined: validators.isDefined,
-        isID: database.isID,
-        isPopulatedString: validators.isPopulatedString,
-        isPopulatedObject: validators.isPopulatedObject,
-        isTimestamp: validators.isTimestamp,
-        isNull: validators.isNull,
-        isBoolean: validators.isBoolean,
-        isJsonString: validators.isJsonString,
-        isUrl: validators.isUrl,
-        isString: validators.isString,
-        isStringWithin: validators.isStringWithin,
-        generateDatabaseID: database.generateID,
-        findOneFromDatabase: database.findOne,
-        insertEntityIntoDatabase: database.insertEntity,
+        validators,
+        database,
+        objectHelpers,
         processPostInput: managerConnector.getPostDetailsFromInput,
         imageProcessorObject: imageFileAdapter,
-        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
+        RequestError
     });
 
     try {
@@ -105,22 +109,10 @@ const rename = async (req, res) => {
     }
 
     const renamePostUseCase = renamePostUseCaseFactory({
-        isDefined: validators.isDefined,
-        isID: database.isID,
-        isPopulatedString: validators.isPopulatedString,
-        isPopulatedObject: validators.isPopulatedObject,
-        isTimestamp: validators.isTimestamp,
-        isNull: validators.isNull,
-        isBoolean: validators.isBoolean,
-        isJsonString: validators.isJsonString,
-        isUrl: validators.isUrl,
-        isString: validators.isString,
-        isStringWithin: validators.isStringWithin,
-        generateDatabaseID: database.generateID,
-        findOneFromDatabase: database.findOne,
-        insertEntityIntoDatabase: database.insertEntity,
-        updateEntityInDatabase: database.updateEntity,
-        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
+        validators,
+        database,
+        objectHelpers,
+        RequestError
     });
 
     try {
@@ -153,22 +145,10 @@ const move = async (req, res) => {
     }
 
     const movePostUseCase = movePostUseCaseFactory({
-        isDefined: validators.isDefined,
-        isID: database.isID,
-        isPopulatedString: validators.isPopulatedString,
-        isPopulatedObject: validators.isPopulatedObject,
-        isTimestamp: validators.isTimestamp,
-        isNull: validators.isNull,
-        isBoolean: validators.isBoolean,
-        isJsonString: validators.isJsonString,
-        isUrl: validators.isUrl,
-        isString: validators.isString,
-        isStringWithin: validators.isStringWithin,
-        generateDatabaseID: database.generateID,
-        findOneFromDatabase: database.findOne,
-        insertEntityIntoDatabase: database.insertEntity,
-        updateInDatabase: database.update,
-        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
+        validators,
+        database,
+        objectHelpers,
+        RequestError
     });
 
     try {
@@ -197,22 +177,10 @@ const remove = async (req, res) => {
     }
 
     const deletePostUseCase = deletePostUseCaseFactory({
-        isDefined: validators.isDefined,
-        isID: database.isID,
-        isPopulatedString: validators.isPopulatedString,
-        isNull: validators.isNull,
-        isBoolean: validators.isBoolean,
-        isJsonString: validators.isJsonString,
-        isUrl: validators.isUrl,
-        isString: validators.isString,
-        isStringWithin: validators.isStringWithin,
-        findOneFromDatabase: database.findOne,
-        updateInDatabase: database.update,
-        insertEntityIntoDatabase: database.insertEntity,
-        generateDatabaseID: database.generateID,
-        isPopulatedObject: validators.isPopulatedObject,
-        isTimestamp: validators.isTimestamp,
-        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
+        validators,
+        database,
+        objectHelpers,
+        RequestError
     });
 
     try {
@@ -241,22 +209,10 @@ const changePinStatus = async (req, res) => {
     }
 
     const changePostPinStatusUseCase = changePostPinStatusUseCaseFactory({
-        isDefined: validators.isDefined,
-        isID: database.isID,
-        isPopulatedString: validators.isPopulatedString,
-        isNull: validators.isNull,
-        isBoolean: validators.isBoolean,
-        isJsonString: validators.isJsonString,
-        isUrl: validators.isUrl,
-        isString: validators.isString,
-        isStringWithin: validators.isStringWithin,
-        findOneFromDatabase: database.findOne,
-        updateInDatabase: database.update,
-        insertEntityIntoDatabase: database.insertEntity,
-        generateDatabaseID: database.generateID,
-        isPopulatedObject: validators.isPopulatedObject,
-        isTimestamp: validators.isTimestamp,
-        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
+        validators,
+        database,
+        objectHelpers,
+        RequestError
     });
 
     try {
@@ -286,21 +242,10 @@ const setNote = async (req, res) => {
     }
 
     const setPostNoteUseCase = setPostNoteUseCaseFactory({
-        isDefined: validators.isDefined,
-        isID: database.isID,
-        isPopulatedString: validators.isPopulatedString,
-        isPopulatedObject: validators.isPopulatedObject,
-        isTimestamp: validators.isTimestamp,
-        isBoolean: validators.isBoolean,
-        isJsonString: validators.isJsonString,
-        isUrl: validators.isUrl,
-        isString: validators.isString,
-        isStringWithin: validators.isStringWithin,
-        generateDatabaseID: database.generateID,
-        findOneFromDatabase: database.findOne,
-        insertEntityIntoDatabase: database.insertEntity,
-        updateEntityInDatabase: database.updateEntity,
-        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
+        validators,
+        database,
+        objectHelpers,
+        RequestError
     });
 
     try {
@@ -319,35 +264,12 @@ const setNote = async (req, res) => {
     return res.status(200).json(post);
 };
 
-const getSearchedList = async (req, res) => {
-    const searchQuery = req.query.search;
-    const sessionUserID = req.currentUserID;
-    let contents = {};
-
-    const getSearchedPostsUseCase = getSearchedPostsFactory({
-        isDefined: validators.isDefined,
-        isID: database.isID,
-        isPopulatedString: validators.isPopulatedString,
-        isPopulatedObject: validators.isPopulatedObject,
-        isTimestamp: validators.isTimestamp,
-        generateDatabaseID: database.generateID,
-        findAllFromDatabase: database.findAll,
-        insertIntoDatabase: database.insert
-    });
-
-    try {
-        contents = await getSearchedPostsUseCase({
-            userID: sessionUserID,
-            searchQuery
-        });
-    } catch (error) {
-        return await debug.returnServerError({
-            res,
-            error
-        });
-    }
-
-    return res.status(200).json(contents);
+module.exports = {
+    getInputDetails,
+    add,
+    rename,
+    move,
+    remove,
+    changePinStatus,
+    setNote
 };
-
-module.exports = {getInputDetails, add, rename, move, remove, changePinStatus, setNote, getSearchedList};

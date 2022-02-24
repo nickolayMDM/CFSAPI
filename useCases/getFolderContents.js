@@ -2,37 +2,24 @@ const userLogEntity = require("../entities/userLogEntity");
 const folderEntity = require("../entities/folderEntity");
 const postEntity = require("../entities/postEntity");
 
-const errorPrefix = "folder entity validation error: ";
+const errorPrefix = "get folder use case validation error: ";
 
 let getFolderContentsFactory = (
     {
-        isDefined,
-        isID,
-        isPopulatedString,
-        isPopulatedObject,
-        isTimestamp,
-        isBoolean,
-        isNull,
-        isPositiveInt,
-        generateDatabaseID,
-        findAllFromDatabase,
-        findOneFromDatabase,
-        countInDatabase,
-        insertIntoDatabase,
-        transformEntityIntoASimpleObject
+        validators,
+        database,
+        objectHelpers,
+        RequestError
     }
 ) => {
     const insertUserLog = async ({userID, folderID}) => {
         const userLogCollectionData = userLogEntity.getCollectionData();
-        const userLogID = generateDatabaseID({
+        const userLogID = database.generateID({
             collectionName: userLogCollectionData.name
         });
         const buildUserLog = userLogEntity.buildUserLogFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isPopulatedObject,
-            isTimestamp
+            validators,
+            database
         });
         const userLog = buildUserLog({
             ID: userLogID,
@@ -42,7 +29,7 @@ let getFolderContentsFactory = (
                 folderID
             }
         });
-        await insertIntoDatabase({
+        await database.insert({
             collectionData: userLogCollectionData,
             entityData: {
                 ID: userLog.getID(),
@@ -59,13 +46,13 @@ let getFolderContentsFactory = (
             userID,
             isDeleted: false
         };
-        if (isID(folderID)) {
+        if (database.isID(folderID)) {
             filter.parentID = folderID;
         } else {
             filter.parentID = {$exists: false};
         }
 
-        return await findAllFromDatabase({
+        return await database.findAll({
             collectionData: folderCollectionData,
             filter,
             sort: {isPinned: -1}
@@ -79,13 +66,13 @@ let getFolderContentsFactory = (
             userID,
             isDeleted: false
         };
-        if (isID(folderID)) {
+        if (database.isID(folderID)) {
             filter.folderID = folderID;
         } else {
             filter.folderID = {$exists: false};
         }
 
-        return await findAllFromDatabase({
+        return await database.findAll({
             collectionData: postCollectionData,
             filter,
             sort: {isPinned: -1}
@@ -107,7 +94,7 @@ let getFolderContentsFactory = (
             return accumulator;
         }, []);
 
-        const postCounts = await countInDatabase({
+        const postCounts = await database.count({
             collectionData: postCollectionData,
             filter: {
                 folderID: {$in: folderIDs},
@@ -120,14 +107,14 @@ let getFolderContentsFactory = (
         for (let key in postCounts) {
             const ID = postCounts[key].ID.toString();
             const foldersArrayKey = folderPostIDToArrayKeyCorrelation[ID];
-            folders[foldersArrayKey].isEmpty = !isPositiveInt(postCounts[key].count);
+            folders[foldersArrayKey].isEmpty = !validators.isPositiveInt(postCounts[key].count);
         }
 
         return folders;
     };
 
     const getFolderFromDatabase = async ({userID, folderID, folderCollectionData}) => {
-        const folderData = await findOneFromDatabase({
+        const folderData = await database.findOne({
             collectionData: folderCollectionData,
             filter: {
                 ID: folderID,
@@ -136,10 +123,8 @@ let getFolderContentsFactory = (
             }
         });
         const buildFolder = folderEntity.buildFolderFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isBoolean
+            validators,
+            database
         });
 
         return buildFolder(folderData);
@@ -152,25 +137,31 @@ let getFolderContentsFactory = (
         } = {}
     ) => {
         if (
-            !isID(userID)
+            !database.isID(userID)
             || (
-                isDefined(folderID)
-                && !isID(folderID)
+                validators.isDefined(folderID)
+                && !database.isID(folderID)
             )) {
-            throw new TypeError(errorPrefix + "invalid data passed");
+            throw new RequestError(errorPrefix + "invalid data passed", {
+                userID,
+                folderID
+            });
         }
         let parentFolder;
         const folderCollectionData = folderEntity.getCollectionData();
 
-        if (isDefined(folderID)) {
+        if (validators.isDefined(folderID)) {
             parentFolder = await getFolderFromDatabase({
                 userID,
                 folderID,
                 folderCollectionData
             });
 
-            if (isNull(parentFolder)) {
-                throw new Error(errorPrefix + "parent folder not found");
+            if (validators.isNull(parentFolder)) {
+                throw new RequestError(errorPrefix + "parent folder not found", {
+                    userID,
+                    folderID
+                });
             }
         }
 
@@ -196,8 +187,8 @@ let getFolderContentsFactory = (
             folderID
         });
 
-        if (isDefined(folderID)) {
-            let folderData = transformEntityIntoASimpleObject(parentFolder, [
+        if (validators.isDefined(folderID)) {
+            let folderData = objectHelpers.transformEntityIntoASimpleObject(parentFolder, [
                 "ID",
                 "name",
                 "parentID"

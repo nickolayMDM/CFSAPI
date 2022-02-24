@@ -2,6 +2,7 @@ const cookies = require("../adapters/cookiesAdapter");
 const database = require("../adapters/databaseAdapter");
 const userCookieGenerator = require("../adapters/userCookieGeneratorAdapter");
 const debug = require("../adapters/debugAdapter");
+const hashing = require("../adapters/hashingAdapter");
 const generateGuestUserFactory = require("../useCases/generateGuestUser");
 const getUserByIDFactory = require("../useCases/getUserByID");
 const getUserByCookieFactory = require("../useCases/getUserByCookie");
@@ -13,19 +14,14 @@ const validators = require("../helpers/validators");
 const objectHelpers = require("../helpers/object");
 const httpHelpers = require("../helpers/http");
 const config = require("../config");
+const RequestError = require("../errors/RequestError");
 
 const _generateNewUser = async (req, res) => {
     const generateGuestUser = generateGuestUserFactory({
-        isDefined: validators.isDefined,
-        isEmail: validators.isEmail,
-        isWithin: validators.isWithin,
-        isID: database.isID,
-        isPopulatedString: validators.isPopulatedString,
-        isPopulatedObject: validators.isPopulatedObject,
-        isTimestamp: validators.isTimestamp,
-        generateDatabaseID: database.generateID,
-        insertEntityIntoDatabase: database.insertEntity,
-        generateUserCookie: userCookieGenerator.generateUserCookie
+        validators,
+        database,
+        userCookieGenerator,
+        RequestError
     });
     const newGuestUserData = await generateGuestUser({
         deviceValue: httpHelpers.getUserAgentFromRequest(req),
@@ -44,17 +40,9 @@ const _generateNewUser = async (req, res) => {
 
 const _getUserByID = async (userID) => {
     const getUserByID = getUserByIDFactory({
-        isDefined: validators.isDefined,
-        isEmail: validators.isEmail,
-        isWithin: validators.isWithin,
-        isID: database.isID,
-        isNull: validators.isNull,
-        findOneFromDatabase: database.findOne,
-        isPopulatedString: validators.isPopulatedString,
-        isPopulatedObject: validators.isPopulatedObject,
-        isTimestamp: validators.isTimestamp,
-        generateDatabaseID: database.generateID,
-        insertEntityIntoDatabase: objectHelpers.transformEntityIntoASimpleObject
+        validators,
+        database,
+        RequestError
     });
 
     return await getUserByID({
@@ -64,18 +52,10 @@ const _getUserByID = async (userID) => {
 
 const _getUserByCookie = async ({userID, cookieValue, deviceValue, IP}) => {
     const getUserByCookie = getUserByCookieFactory({
-        isDefined: validators.isDefined,
-        isEmail: validators.isEmail,
-        isWithin: validators.isWithin,
-        isID: database.isID,
-        isNull: validators.isNull,
-        generateUserCookie: userCookieGenerator.generateUserCookie,
-        generateDatabaseID: database.generateID,
-        findOneFromDatabase: database.findOne,
-        isPopulatedString: validators.isPopulatedString,
-        isPopulatedObject: validators.isPopulatedObject,
-        isTimestamp: validators.isTimestamp,
-        insertEntityIntoDatabase: objectHelpers.transformEntityIntoASimpleObject
+        validators,
+        database,
+        userCookieGenerator,
+        RequestError
     });
 
     return getUserByCookie({
@@ -86,7 +66,7 @@ const _getUserByCookie = async ({userID, cookieValue, deviceValue, IP}) => {
     });
 };
 
-const authorizeMiddleware = (req, res, next) => {
+const authorizeMiddleware = async (req, res, next) => {
     if (req.path.substr(0, 7) === "/public") {
         return next();
     }
@@ -155,17 +135,9 @@ const getOwnUser = async (req, res) => {
     }
 
     const getUserByID = getUserByIDFactory({
-        isDefined: validators.isDefined,
-        isEmail: validators.isEmail,
-        isWithin: validators.isWithin,
-        isID: database.isID,
-        isNull: validators.isNull,
-        isPopulatedString: validators.isPopulatedString,
-        isPopulatedObject: validators.isPopulatedObject,
-        isTimestamp: validators.isTimestamp,
-        generateDatabaseID: database.generateID,
-        findOneFromDatabase: database.findOne,
-        insertEntityIntoDatabase: database.insertEntity
+        validators,
+        database,
+        RequestError
     });
 
     try {
@@ -181,7 +153,8 @@ const getOwnUser = async (req, res) => {
     const user = objectHelpers.transformEntityIntoASimpleObject(userEntity, [
         "name",
         "email",
-        "status"
+        "status",
+        "subscriptionType"
     ]);
 
     return res.status(200).json(user);
@@ -190,7 +163,6 @@ const getOwnUser = async (req, res) => {
 const getUserByPassword = async (req, res) => {
     const name = req.query.name;
     const password = req.query.password;
-    const token = name + "," + password;
     let userData = {};
 
     const sessionUserID = req.currentUserID;
@@ -199,30 +171,23 @@ const getUserByPassword = async (req, res) => {
     }
 
     const getUserByToken = getUserByTokenFactory({
-        isDefined: validators.isDefined,
-        isEmail: validators.isEmail,
-        isWithin: validators.isWithin,
-        isID: database.isID,
-        isNull: validators.isNull,
-        isPopulatedString: validators.isPopulatedString,
-        isPopulatedObject: validators.isPopulatedObject,
-        isTimestamp: validators.isTimestamp,
-        generateDatabaseID: database.generateID,
-        findOneFromDatabase: database.findOne,
-        insertEntityIntoDatabase: database.insertEntity,
-        isBoolean: validators.isBoolean,
-        isHash: validators.isMD5Hash,
-        isPopulatedArray: validators.isPopulatedArray,
-        generateUserCookie: userCookieGenerator.generateUserCookie,
-        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject
+        validators,
+        database,
+        objectHelpers,
+        userCookieGenerator,
+        hashing,
+        RequestError
     });
 
     try {
         userData = await getUserByToken({
-            token,
+            token: name,
             variant: "password",
             deviceValue: httpHelpers.getUserAgentFromRequest(req),
-            IP: httpHelpers.getIPFromRequest(req)
+            IP: httpHelpers.getIPFromRequest(req),
+            additional: {
+                password
+            }
         });
     } catch (error) {
         return await debug.returnServerError({
@@ -235,15 +200,9 @@ const getUserByPassword = async (req, res) => {
     if (sessionUser.getStatus() === "guest") {
         let arePopulatedGuestContents = false;
         const getPostsCountUseCase = getPostsCountFactory({
-            isDefined: validators.isDefined,
-            isID: database.isID,
-            isPopulatedString: validators.isPopulatedString,
-            isPopulatedObject: validators.isPopulatedObject,
-            isTimestamp: validators.isTimestamp,
-            isPopulatedArray: validators.isPopulatedArray,
-            generateDatabaseID: database.generateID,
-            countInDatabase: database.count,
-            insertIntoDatabase: database.insert
+            validators,
+            database,
+            RequestError
         });
 
         try {
@@ -278,22 +237,11 @@ const addPasswordAuthorizationToUser = async (req, res) => {
     }
 
     const addPasswordAuthorizationToUser = addPasswordAuthorizationToUserFactory({
-        isDefined: validators.isDefined,
-        isEmail: validators.isEmail,
-        isWithin: validators.isWithin,
-        isID: database.isID,
-        isNull: validators.isNull,
-        isPopulatedString: validators.isPopulatedString,
-        isPopulatedObject: validators.isPopulatedObject,
-        isTimestamp: validators.isTimestamp,
-        generateDatabaseID: database.generateID,
-        findOneFromDatabase: database.findOne,
-        insertEntityIntoDatabase: database.insertEntity,
-        isBoolean: validators.isBoolean,
-        isHash: validators.isMD5Hash,
-        isPopulatedArray: validators.isPopulatedArray,
-        transformEntityIntoASimpleObject: objectHelpers.transformEntityIntoASimpleObject,
-        updateEntityInDatabase: database.updateEntity
+        validators,
+        database,
+        objectHelpers,
+        hashing,
+        RequestError
     });
 
     try {
@@ -314,7 +262,8 @@ const addPasswordAuthorizationToUser = async (req, res) => {
     const user = objectHelpers.transformEntityIntoASimpleObject(userEntity, [
         "name",
         "email",
-        "status"
+        "status",
+        "subscriptionType"
     ]);
 
     return res.status(200).json(user);
@@ -328,21 +277,10 @@ const mergeUserWithCurrent = async (req, res) => {
     }
 
     const mergeUsers = mergeUsersUseCaseFactory({
-        isDefined: validators.isDefined,
-        isEmail: validators.isEmail,
-        isWithin: validators.isWithin,
-        isID: database.isID,
-        isNull: validators.isNull,
-        isPopulatedString: validators.isPopulatedString,
-        isPopulatedObject: validators.isPopulatedObject,
-        isTimestamp: validators.isTimestamp,
-        isPopulatedArray: validators.isPopulatedArray,
-        generateDatabaseID: database.generateID,
-        findOneFromDatabase: database.findOne,
-        findAllFromDatabase: database.findAll,
-        insertEntityIntoDatabase: database.insertEntity,
-        updateManyInDatabase: database.updateMany,
-        replaceItemPropertyInObjectArray: objectHelpers.replaceItemPropertyInObjectArray
+        validators,
+        database,
+        objectHelpers,
+        RequestError
     });
 
     try {

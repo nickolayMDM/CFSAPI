@@ -3,40 +3,27 @@ const user = require("../../entities/userEntity");
 
 const userAuthorizationTest = (
     {
-        buildCorrectEntity,
-        buildIncorrectEntity,
-        getFieldFromEntity,
-        assertCollectionDataGetter,
-        testDescribe,
-        testIt,
-        testEqual,
-        isID,
-        isPopulatedString,
-        isBoolean,
-        isWithin,
-        isMD5Hash,
-        generateDatabaseID
+        test,
+        validators,
+        database
     }
 ) => {
-    testDescribe("User Authorization Entity Test", () => {
-        assertCollectionDataGetter({
+    test.describe("User Authorization Entity Test", () => {
+        test.assertCollectionDataGetter({
             getterFunction: userAuthorization.getCollectionData
         });
 
         const buildUserAuthorization = userAuthorization.buildUserAuthorizationFactory({
-            isID,
-            isPopulatedString,
-            isBoolean,
-            isWithin,
-            isMD5Hash
+            validators,
+            database
         });
         const userAuthorizationVariants = userAuthorization.getUserAuthorizationVariants();
         const userAuthorizationCollectionData = userAuthorization.getCollectionData();
-        const ID = generateDatabaseID({
+        const ID = database.generateID({
             collectionName: userAuthorizationCollectionData.name
         });
         const consistentBuildParameters = {
-            userID: generateDatabaseID({
+            userID: database.generateID({
                 collectionName: user.getCollectionData().name
             }),
             isActive: true
@@ -44,26 +31,25 @@ const userAuthorizationTest = (
         const passwordBuildParameters = {
             ...consistentBuildParameters,
             variant: userAuthorizationVariants.VARIANT_PASSWORD,
-            token: "58d23eb435996dde710b8f42c1fa4025"
+            token: "Bob",
+            additional: {
+                password: "58d23eb435996dde710b8f42c1fa4025"
+            }
         };
 
-        buildCorrectEntity({
+        test.buildCorrectEntity({
             ID,
             buildEntity: buildUserAuthorization,
             testName: "should build a password variant entity",
-            buildParameters: {
-                ...consistentBuildParameters,
-                variant: userAuthorizationVariants.VARIANT_PASSWORD,
-                token: "58d23eb435996dde710b8f42c1fa4025"
-            }
+            buildParameters: passwordBuildParameters
         });
 
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildUserAuthorization,
             testName: "should throw an error when building an entity without an ID",
             buildParameters: passwordBuildParameters
         });
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildUserAuthorization,
             testName: "should throw an error when building an entity with an incorrect ID",
             buildParameters: {
@@ -71,7 +57,7 @@ const userAuthorizationTest = (
                 ID: "Bob"
             }
         });
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildUserAuthorization,
             testName: "should throw an error when building an entity without a userID",
             buildParameters: {
@@ -79,7 +65,7 @@ const userAuthorizationTest = (
                 userID: undefined
             }
         });
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildUserAuthorization,
             testName: "should throw an error when building an entity with an incorrect user ID",
             buildParameters: {
@@ -87,7 +73,7 @@ const userAuthorizationTest = (
                 userID: "Bob"
             }
         });
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildUserAuthorization,
             testName: "should throw an error when building an entity with an invalid variant",
             buildParameters: {
@@ -97,7 +83,7 @@ const userAuthorizationTest = (
                 token: "Bob"
             }
         });
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildUserAuthorization,
             testName: "should throw an error when building an entity with an invalid token for the password variant",
             buildParameters: {
@@ -107,7 +93,7 @@ const userAuthorizationTest = (
                 token: "Bob"
             }
         });
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildUserAuthorization,
             testName: "should throw an error when building an entity with a non-boolean is active value",
             buildParameters: {
@@ -118,7 +104,7 @@ const userAuthorizationTest = (
         });
 
 
-        getFieldFromEntity({
+        test.getFieldFromEntity({
             ID,
             buildEntity: buildUserAuthorization,
             testName: "should get ID from entity",
@@ -126,7 +112,7 @@ const userAuthorizationTest = (
             getFunctionName: "getID",
             buildParameters: passwordBuildParameters
         });
-        getFieldFromEntity({
+        test.getFieldFromEntity({
             ID,
             buildEntity: buildUserAuthorization,
             testName: "should get user ID from entity",
@@ -134,7 +120,7 @@ const userAuthorizationTest = (
             getFunctionName: "getUserID",
             buildParameters: passwordBuildParameters
         });
-        getFieldFromEntity({
+        test.getFieldFromEntity({
             ID,
             buildEntity: buildUserAuthorization,
             testName: "should get variant from entity",
@@ -142,7 +128,7 @@ const userAuthorizationTest = (
             getFunctionName: "getVariant",
             buildParameters: passwordBuildParameters
         });
-        getFieldFromEntity({
+        test.getFieldFromEntity({
             ID,
             buildEntity: buildUserAuthorization,
             testName: "should get token from entity",
@@ -150,7 +136,7 @@ const userAuthorizationTest = (
             getFunctionName: "getToken",
             buildParameters: passwordBuildParameters
         });
-        getFieldFromEntity({
+        test.getFieldFromEntity({
             ID,
             buildEntity: buildUserAuthorization,
             testName: "should get is active boolean entity",
@@ -159,10 +145,10 @@ const userAuthorizationTest = (
             buildParameters: passwordBuildParameters
         });
 
-        testIt("should receive user authorization variants object", () => {
+        test.it("should receive user authorization variants object", () => {
             const variants = userAuthorization.getUserAuthorizationVariants();
 
-            testEqual(typeof variants, "object", "Failed to get user authorization variants");
+            test.equal(typeof variants, "object", "Failed to get user authorization variants");
         });
     });
 };

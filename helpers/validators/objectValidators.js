@@ -11,7 +11,11 @@ const isEmptyArray = (value) => {
 };
 
 const isObject = (value) => {
-    return (isObjectType(value) && !Array.isArray(value) && value !== null);
+    return (isObjectType(value) && !Array.isArray(value) && !(value instanceof RegExp) && value !== null);
+};
+
+const isRegExp = (value) => {
+    return value instanceof RegExp;
 };
 
 const isPopulatedObject = (value) => {
@@ -38,5 +42,6 @@ module.exports = {
     isPopulatedObject,
     isPopulatedArray,
     isEmptyObject,
-    isObjectType
+    isObjectType,
+    isRegExp
 };

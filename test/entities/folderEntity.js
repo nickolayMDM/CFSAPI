@@ -3,45 +3,36 @@ const user = require("../../entities/userEntity");
 
 const FolderTest = (
     {
-        buildCorrectEntity,
-        buildIncorrectEntity,
-        getFieldFromEntity,
-        assertCollectionDataGetter,
-        testDescribe,
-        isDefined,
-        isID,
-        isPopulatedString,
-        isBoolean,
-        generateDatabaseID
+        test,
+        validators,
+        database
     }
 ) => {
-    testDescribe("Folder Entity Test", () => {
-        assertCollectionDataGetter({
+    test.describe("Folder Entity Test", () => {
+        test.assertCollectionDataGetter({
             getterFunction: folder.getCollectionData
         });
 
         const buildFolder = folder.buildFolderFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isBoolean
+            validators,
+            database
         });
         const folderCollectionData = folder.getCollectionData();
-        const ID = generateDatabaseID({
+        const ID = database.generateID({
             collectionName: folderCollectionData.name
         });
         const fullBuildParameters = {
-            userID: generateDatabaseID({
+            userID: database.generateID({
                 collectionName: user.getCollectionData().name
             }),
             name: "Bob's folder",
-            parentID: generateDatabaseID({
+            parentID: database.generateID({
                 collectionName: folderCollectionData.name
             }),
             isDeleted: true
         };
 
-        buildCorrectEntity({
+        test.buildCorrectEntity({
             ID,
             buildEntity: buildFolder,
             testName: "should build a minimal entity",
@@ -50,19 +41,19 @@ const FolderTest = (
                 name: fullBuildParameters.name
             }
         });
-        buildCorrectEntity({
+        test.buildCorrectEntity({
             ID,
             buildEntity: buildFolder,
             testName: "should build a full entity",
             buildParameters: fullBuildParameters
         });
 
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildFolder,
             testName: "should throw an error when building an entity without an ID",
             buildParameters: fullBuildParameters
         });
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildFolder,
             testName: "should throw an error when building an entity with an incorrect ID",
             buildParameters: {
@@ -70,7 +61,7 @@ const FolderTest = (
                 ID: "Bob"
             }
         });
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildFolder,
             testName: "should throw an error when building an entity without a user ID",
             buildParameters: {
@@ -79,7 +70,7 @@ const FolderTest = (
                 userID: undefined
             }
         });
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildFolder,
             testName: "should throw an error when building an entity with an incorrect user ID",
             buildParameters: {
@@ -88,7 +79,7 @@ const FolderTest = (
                 userID: "Bob"
             }
         });
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildFolder,
             testName: "should throw an error when building an entity with an empty name",
             buildParameters: {
@@ -97,7 +88,7 @@ const FolderTest = (
                 name: ""
             }
         });
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildFolder,
             testName: "should throw an error when building an entity with a numeric name",
             buildParameters: {
@@ -106,7 +97,7 @@ const FolderTest = (
                 name: 42
             }
         });
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildFolder,
             testName: "should throw an error when building an entity with an invalid parent ID",
             buildParameters: {
@@ -115,7 +106,7 @@ const FolderTest = (
                 parentID: "Bob"
             }
         });
-        buildIncorrectEntity({
+        test.buildIncorrectEntity({
             buildEntity: buildFolder,
             testName: "should throw an error when building an entity with an non-boolean isDeleted value",
             buildParameters: {
@@ -126,7 +117,7 @@ const FolderTest = (
         });
 
 
-        getFieldFromEntity({
+        test.getFieldFromEntity({
             ID,
             buildEntity: buildFolder,
             testName: "should get ID from entity",
@@ -134,7 +125,7 @@ const FolderTest = (
             getFunctionName: "getID",
             buildParameters: fullBuildParameters
         });
-        getFieldFromEntity({
+        test.getFieldFromEntity({
             ID,
             buildEntity: buildFolder,
             testName: "should get user ID from entity",
@@ -142,7 +133,7 @@ const FolderTest = (
             getFunctionName: "getUserID",
             buildParameters: fullBuildParameters
         });
-        getFieldFromEntity({
+        test.getFieldFromEntity({
             ID,
             buildEntity: buildFolder,
             testName: "should get name from entity",
@@ -150,7 +141,7 @@ const FolderTest = (
             getFunctionName: "getName",
             buildParameters: fullBuildParameters
         });
-        getFieldFromEntity({
+        test.getFieldFromEntity({
             ID,
             buildEntity: buildFolder,
             testName: "should get parent ID from entity",
@@ -158,7 +149,7 @@ const FolderTest = (
             getFunctionName: "getParentID",
             buildParameters: fullBuildParameters
         });
-        getFieldFromEntity({
+        test.getFieldFromEntity({
             ID,
             buildEntity: buildFolder,
             testName: "should get is deleted boolean from entity",

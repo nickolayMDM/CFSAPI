@@ -6,36 +6,22 @@ const errorPrefix = "add post use case error: ";
 
 let addPostFactory = (
     {
-        isDefined,
-        isID,
-        isPopulatedString,
-        isPopulatedObject,
-        isTimestamp,
-        isNull,
-        isBoolean,
-        isJsonString,
-        isUrl,
-        isString,
-        isStringWithin,
-        generateDatabaseID,
-        findOneFromDatabase,
-        insertEntityIntoDatabase,
+        validators,
+        database,
+        objectHelpers,
         processPostInput,
         imageProcessorObject,
-        transformEntityIntoASimpleObject
+        RequestError
     }
 ) => {
     const insertUserLog = async ({userID, postID}) => {
         const userLogCollectionData = userLogEntity.getCollectionData();
-        const userLogID = generateDatabaseID({
+        const userLogID = database.generateID({
             collectionName: userLogCollectionData.name
         });
         const buildUserLog = userLogEntity.buildUserLogFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isPopulatedObject,
-            isTimestamp
+            validators,
+            database
         });
         const userLog = buildUserLog({
             ID: userLogID,
@@ -45,7 +31,7 @@ let addPostFactory = (
                 postID
             }
         });
-        await insertEntityIntoDatabase({
+        await database.insertEntity({
             collectionData: userLogCollectionData,
             entityData: userLog
         });
@@ -78,27 +64,21 @@ let addPostFactory = (
 
     const addPost = async ({postID, userID, folderID, name, postInputData, postCollectionData, url}) => {
         const buildPost = postEntity.buildPostFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isBoolean,
-            isJsonString,
-            isUrl,
-            isString,
-            isStringWithin
+            validators,
+            database
         });
 
         const post = buildPost({
             ID: postID,
             userID,
             folderID,
-            name: (isPopulatedString(name)) ? name : postInputData.name,
+            name: (validators.isPopulatedString(name)) ? name : postInputData.name,
             originalData: JSON.stringify(postInputData.originalData),
             url,
             author: postInputData.author
         });
 
-        await insertEntityIntoDatabase({
+        await database.insertEntity({
             collectionData: postCollectionData,
             entityData: post
         });
@@ -116,21 +96,24 @@ let addPostFactory = (
         } = {}
     ) => {
         if (
-            !isID(userID)
-            || !isUrl(url)
+            !database.isID(userID)
+            || !validators.isUrl(url)
+            || !validators.isPopulatedString(name)
             || (
-                isDefined(name)
-                && !isString(name)
-            )
-            || (
-                isDefined(folderID)
-                && !isID(folderID)
+                validators.isDefined(folderID)
+                && !database.isID(folderID)
             )
         ) {
-            throw new TypeError(errorPrefix + "invalid data passed");
+            throw new RequestError(errorPrefix + "invalid data passed", {
+                userID,
+                folderID,
+                name,
+                url,
+                data
+            });
         }
 
-        const folderData = await findOneFromDatabase({
+        const folderData = await database.findOne({
             collectionData: folderEntity.getCollectionData(),
             filter: {
                 ID: folderID,
@@ -138,12 +121,15 @@ let addPostFactory = (
                 isDeleted: false
             }
         });
-        if (isDefined(folderID) && isNull(folderData)) {
-            throw new TypeError(errorPrefix + "folder not found");
+        if (validators.isDefined(folderID) && validators.isNull(folderData)) {
+            throw new RequestError(errorPrefix + "folder not found", {
+                folderID,
+                userID
+            });
         }
 
         const postCollectionData = postEntity.getCollectionData();
-        const existingPost = await findOneFromDatabase({
+        const existingPost = await database.findOne({
             collectionData: postCollectionData,
             filter: {
                 userID,
@@ -159,15 +145,20 @@ let addPostFactory = (
                 ]
             }
         });
-        if (!isNull(existingPost)) {
-            throw new TypeError(errorPrefix + "this entry was already added");
+        if (!validators.isNull(existingPost)) {
+            throw new RequestError(errorPrefix + "this entry was already added", {
+                userID,
+                folderID,
+                name,
+                url
+            });
         }
 
-        const postInput = (isPopulatedObject(data)) ? data : url;
+        const postInput = (validators.isPopulatedObject(data)) ? data : url;
         const processPostInputResult = await processPostInput({
             postInput
         });
-        const postID = generateDatabaseID({
+        const postID = database.generateID({
             collectionName: postEntity.getCollectionData()
         });
         await saveImage({
@@ -189,7 +180,7 @@ let addPostFactory = (
             postID
         });
 
-        let postData = transformEntityIntoASimpleObject(post, [
+        let postData = objectHelpers.transformEntityIntoASimpleObject(post, [
             "ID",
             "name",
             "url",

@@ -1,39 +1,31 @@
 const userLogEntity = require("../entities/userLogEntity");
 const postEntity = require("../entities/postEntity");
+const userEntity = require("../entities/userEntity");
 
 const errorPrefix = "get posts count use case error: ";
 
 let getPostsCountFactory = (
     {
-        isDefined,
-        isID,
-        isPopulatedString,
-        isPopulatedObject,
-        isTimestamp,
-        isPopulatedArray,
-        generateDatabaseID,
-        countInDatabase,
-        insertIntoDatabase
+        validators,
+        database,
+        RequestError
     }
 ) => {
     const insertUserLog = async ({userID}) => {
         const userLogCollectionData = userLogEntity.getCollectionData();
-        const userLogID = generateDatabaseID({
+        const userLogID = database.generateID({
             collectionName: userLogCollectionData.name
         });
         const buildUserLog = userLogEntity.buildUserLogFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isPopulatedObject,
-            isTimestamp
+            validators,
+            database
         });
         const userLog = buildUserLog({
             ID: userLogID,
             userID,
             description: "Getting user posts count"
         });
-        await insertIntoDatabase({
+        await database.insert({
             collectionData: userLogCollectionData,
             entityData: {
                 ID: userLog.getID(),
@@ -52,13 +44,13 @@ let getPostsCountFactory = (
             isDeleted: false
         };
 
-        const countResult = await countInDatabase({
+        const countResult = await database.count({
             collectionData: postCollectionData,
             filter,
             sort: {isPinned: -1}
         });
 
-        if (isPopulatedArray(countResult)) {
+        if (validators.isPopulatedArray(countResult)) {
             return countResult[0].count
         }
         return 0;
@@ -70,10 +62,25 @@ let getPostsCountFactory = (
         } = {}
     ) => {
         if (
-            !isID(userID)
+            !database.isID(userID)
         ) {
-            throw new TypeError(errorPrefix + "invalid data passed");
+            throw new RequestError(errorPrefix + "invalid data passed", {
+                userID
+            });
         }
+
+        const userData = database.findOne({
+            collectionData: userEntity.getCollectionData(),
+            filter: {
+                ID: userID
+            }
+        });
+        if (validators.isNull(userData)) {
+            throw new RequestError(errorPrefix + "user does not exist in the database", {
+                userID
+            });
+        }
+
         let postsCount = await countAllPosts({
             userID
         });

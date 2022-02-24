@@ -5,31 +5,20 @@ const errorPrefix = "delete folder use case error: ";
 
 let deleteFolderFactory = (
     {
-        isDefined,
-        isID,
-        isPopulatedString,
-        isNull,
-        isBoolean,
-        findOneFromDatabase,
-        updateInDatabase,
-        generateDatabaseID,
-        isPopulatedObject,
-        insertEntityIntoDatabase,
-        isTimestamp,
-        transformEntityIntoASimpleObject
+        validators,
+        database,
+        objectHelpers,
+        RequestError
     }
 ) => {
     const insertUserLog = async ({userID, folderID}) => {
         const userLogCollectionData = userLogEntity.getCollectionData();
-        const userLogID = generateDatabaseID({
+        const userLogID = database.generateID({
             collectionName: userLogCollectionData.name
         });
         const buildUserLog = userLogEntity.buildUserLogFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isPopulatedObject,
-            isTimestamp
+            validators,
+            database
         });
         const userLog = buildUserLog({
             ID: userLogID,
@@ -39,7 +28,7 @@ let deleteFolderFactory = (
                 folderID
             }
         });
-        await insertEntityIntoDatabase({
+        await database.insertEntity({
             collectionData: userLogCollectionData,
             entityData: userLog
         });
@@ -49,14 +38,12 @@ let deleteFolderFactory = (
         folderData.isDeleted = true;
 
         const buildFolder = folderEntity.buildFolderFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isBoolean
+            validators,
+            database
         });
         const folder = buildFolder(folderData);
 
-        await updateInDatabase({
+        await database.update({
             collectionData: folderCollectionData,
             ID: folder.getID(),
             updateData: {
@@ -74,14 +61,17 @@ let deleteFolderFactory = (
         } = {}
     ) => {
         if (
-            !isID(userID)
-            || !isID(folderID)
+            !database.isID(userID)
+            || !database.isID(folderID)
         ) {
-            throw new Error(errorPrefix + "invalid data passed");
+            throw new RequestError(errorPrefix + "invalid data passed", {
+                userID,
+                folderID
+            });
         }
         const folderCollectionData = folderEntity.getCollectionData();
 
-        const folderData = await findOneFromDatabase({
+        const folderData = await database.findOne({
             collectionData: folderCollectionData,
             filter: {
                 userID,
@@ -89,8 +79,11 @@ let deleteFolderFactory = (
                 isDeleted: false
             }
         });
-        if (isNull(folderData)) {
-            throw new Error(errorPrefix + "folder not found");
+        if (validators.isNull(folderData)) {
+            throw new RequestError(errorPrefix + "folder not found", {
+                userID,
+                folderID
+            });
         }
 
         const folder = await deleteFolder({
@@ -103,7 +96,7 @@ let deleteFolderFactory = (
             folderID
         });
 
-        const newFolderData = transformEntityIntoASimpleObject(folder, [
+        const newFolderData = objectHelpers.transformEntityIntoASimpleObject(folder, [
             "ID",
             "userID",
             "name",

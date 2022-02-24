@@ -1,34 +1,26 @@
 const userEntity = require("../entities/userEntity");
 const userLogEntity = require("../entities/userLogEntity");
 
+const errorPrefix = "get user by cookie use case error: ";
+
 let getUserByCookieFactory = (
     {
-        isDefined,
-        isEmail,
-        isWithin,
-        isID,
-        isNull,
-        generateUserCookie,
-        generateDatabaseID,
-        findOneFromDatabase,
-        isPopulatedString,
-        isPopulatedObject,
-        isTimestamp,
-        insertEntityIntoDatabase
+
+        validators,
+        database,
+        userCookieGenerator,
+        RequestError
     }
 ) => {
     const insertUserLog = async ({userID, realCookieValue, cookieValue, deviceValue, IP}) => {
         const userLogCollectionData = userLogEntity.getCollectionData();
-        const userLogID = generateDatabaseID({
+        const userLogID = database.generateID({
             collectionData: userLogCollectionData
         });
         const userLogDescription = "User login by cookie attempt";
         const buildUserLog = userLogEntity.buildUserLogFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isPopulatedObject,
-            isTimestamp
+            validators,
+            database
         });
         const userLog = buildUserLog({
             ID: userLogID,
@@ -41,7 +33,7 @@ let getUserByCookieFactory = (
                 IP
             }
         });
-        await insertEntityIntoDatabase({
+        await database.insertEntity({
             collectionData: userLogCollectionData,
             entityData: userLog
         });
@@ -55,33 +47,51 @@ let getUserByCookieFactory = (
             IP
         }
     ) => {
-        const realCookieValue = await generateUserCookie({
+        if (
+            !database.isID(userID)
+            || !userCookieGenerator.isCookie(cookieValue)
+            || !validators.isPopulatedString(deviceValue)
+            || !validators.isPopulatedString(IP)
+        ) {
+            throw new RequestError(errorPrefix + "invalid data passed", {
+                userID,
+                cookieValue,
+                deviceValue,
+                IP
+            });
+        }
+
+        const realCookieValue = await userCookieGenerator.generateUserCookie({
             deviceValue,
             IP,
             userID
         });
 
-        if (realCookieValue !== cookieValue) {
-            //TODO: create custom error objects that would contain additional data that will be saved in the database
-            console.log(realCookieValue, cookieValue);
-            throw new Error("cookie value does not match the provided data");
-        }
-
-        const userData = await findOneFromDatabase({
+        const userData = await database.findOne({
             collectionData: userEntity.getCollectionData(),
             filter: {
                 ID: userID
             }
         });
-        if (isNull(userData)) {
-            throw new Error("user was not found in the database");
+        if (validators.isNull(userData)) {
+            throw new RequestError(errorPrefix + "user was not found in the database", {
+                userID
+            });
+        }
+
+        if (realCookieValue !== cookieValue) {
+            throw new RequestError(errorPrefix + "cookie value does not match the provided data", {
+                realCookieValue,
+                userID,
+                cookieValue,
+                deviceValue,
+                IP
+            });
         }
 
         const buildUser = userEntity.buildUserFactory({
-            isDefined,
-            isEmail,
-            isWithin,
-            isID
+            validators,
+            database
         });
         const user = buildUser(userData);
 

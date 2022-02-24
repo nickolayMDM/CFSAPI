@@ -1,40 +1,31 @@
 const userEntity = require("../entities/userEntity");
 const userLogEntity = require("../entities/userLogEntity");
 
+const errorPrefix = "get user by ID use case error: ";
+
 let getUserByIDFactory = (
     {
-        isDefined,
-        isEmail,
-        isWithin,
-        isID,
-        isNull,
-        isPopulatedString,
-        isPopulatedObject,
-        isTimestamp,
-        generateDatabaseID,
-        findOneFromDatabase,
-        insertEntityIntoDatabase
+        validators,
+        database,
+        RequestError
     }
 ) => {
     const insertUserLog = async ({userID}) => {
         const userLogCollectionData = userLogEntity.getCollectionData();
-        const userLogID = generateDatabaseID({
+        const userLogID = database.generateID({
             collectionData: userLogCollectionData
         });
         const userLogDescription = "Got user by ID";
         const buildUserLog = userLogEntity.buildUserLogFactory({
-            isDefined,
-            isID,
-            isPopulatedString,
-            isPopulatedObject,
-            isTimestamp
+            validators,
+            database
         });
         const userLog = buildUserLog({
             ID: userLogID,
             userID,
             description: userLogDescription
         });
-        await insertEntityIntoDatabase({
+        await database.insertEntity({
             collectionData: userLogCollectionData,
             entityData: userLog
         });
@@ -45,26 +36,27 @@ let getUserByIDFactory = (
             userID
         }
     ) => {
-
-        if (!isID(userID)) {
-            throw new Error("provided input is invalid");
+        if (!database.isID(userID)) {
+            throw new RequestError(errorPrefix + "provided input is invalid", {
+                userID
+            });
         }
 
-        const userData = await findOneFromDatabase({
+        const userData = await database.findOne({
             collectionData: userEntity.getCollectionData(),
             filter: {
                 ID: userID
             }
         });
-        if (isNull(userData)) {
-            throw new Error("user was not found in the database");
+        if (validators.isNull(userData)) {
+            throw new RequestError(errorPrefix + "user was not found in the database", {
+                userID
+            });
         }
 
         const buildUser = userEntity.buildUserFactory({
-            isDefined,
-            isEmail,
-            isWithin,
-            isID
+            validators,
+            database
         });
         const user = buildUser(userData);
 

@@ -1,41 +1,45 @@
+const userLog = require("../entities/userLogEntity");
+const user = require("../entities/userEntity");
+
 const errorPrefix = "get input details use case error: ";
 
 let getInputDetailsFactory = (
     {
-        isID,
-        isPopulatedString,
-        processPostInput
+        validators,
+        database,
+        processPostInput,
+        RequestError
     }
 ) => {
-    //TODO: add logging
-
-    // const insertUserLog = async ({userID}) => {
-    //     const userLogCollectionData = userLogEntity.getCollectionData();
-    //     const userLogID = generateDatabaseID({
-    //         collectionName: userLogCollectionData.name
-    //     });
-    //     const buildUserLog = userLogEntity.buildUserLogFactory({
-    //         isDefined,
-    //         isID,
-    //         isPopulatedString,
-    //         isPopulatedObject,
-    //         isTimestamp
-    //     });
-    //     const userLog = buildUserLog({
-    //         ID: userLogID,
-    //         userID,
-    //         description: "Getting user posts count"
-    //     });
-    //     await insertIntoDatabase({
-    //         collectionData: userLogCollectionData,
-    //         entityData: {
-    //             ID: userLog.getID(),
-    //             userID: userLog.getUserID(),
-    //             description: userLog.getDescription(),
-    //             timestamp: userLog.getTimestamp()
-    //         }
-    //     });
-    // };
+    const insertUserLog = async ({userID, postInput, post}) => {
+        const userLogCollectionData = userLog.getCollectionData();
+        const userLogID = database.generateID({
+            collectionName: userLogCollectionData.name
+        });
+        const buildUserLog = userLog.buildUserLogFactory({
+            validators,
+            database
+        });
+        const userLogEntity = buildUserLog({
+            ID: userLogID,
+            userID,
+            description: "Getting input details",
+            additional: {
+                postInput,
+                post
+            }
+        });
+        await database.insert({
+            collectionData: userLogCollectionData,
+            entityData: {
+                ID: userLogEntity.getID(),
+                userID: userLogEntity.getUserID(),
+                description: userLogEntity.getDescription(),
+                additional: userLogEntity.getAdditional(),
+                timestamp: userLogEntity.getTimestamp()
+            }
+        });
+    };
 
     return async (
         {
@@ -44,15 +48,37 @@ let getInputDetailsFactory = (
         } = {}
     ) => {
         if (
-            !isID(userID)
-            || !isPopulatedString(postInput)
+            !database.isID(userID)
+            || !validators.isPopulatedString(postInput)
         ) {
-            throw new TypeError(errorPrefix + "invalid data passed");
+            throw new RequestError(errorPrefix + "invalid data passed", {
+                userID,
+                postInput
+            });
         }
+
+        const userData = await database.findOne({
+            collectionData: user.getCollectionData(),
+            filter: {
+                ID: userID
+            }
+        });
+        if (validators.isNull(userData)) {
+            throw new RequestError(errorPrefix + "user was not found in the database", {
+                userID
+            });
+        }
+
         const processPostInputResult = await processPostInput({
             postInput
         });
         const post = processPostInputResult.response.postDetails;
+
+        await insertUserLog({
+            postInput,
+            post,
+            userID
+        });
 
         return post;
     }
