@@ -2,6 +2,7 @@ const database = require("../adapters/databaseAdapter");
 const validators = require("../helpers/validators");
 const objectHelpers = require("../helpers/object");
 const numberHelpers = require("../helpers/number");
+const textHelpers = require("../helpers/text");
 const debug = require("../adapters/debugAdapter");
 const addPostUseCaseFactory = require("../useCases/addPost");
 const renamePostUseCaseFactory = require("../useCases/renamePost");
@@ -59,6 +60,7 @@ const add = async (req, res) => {
     const url = req.body.url;
     const data = req.body.data;
     const name = req.body.name;
+    const note = req.body.note;
     const sessionUserID = req.currentUserID;
     let folderIDString = req.body.folder;
     let folderID, post;
@@ -74,6 +76,7 @@ const add = async (req, res) => {
         validators,
         database,
         objectHelpers,
+        textHelpers,
         processPostInput: managerConnector.getPostDetailsFromInput,
         imageProcessorObject: imageFileAdapter,
         RequestError
@@ -85,6 +88,7 @@ const add = async (req, res) => {
             url,
             data,
             name,
+            note,
             folderID
         });
     } catch (error) {

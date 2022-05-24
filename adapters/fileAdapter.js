@@ -34,7 +34,9 @@ class file {
             path = path.join("/");
         }
 
-        this._fileData = await fs.readFile(path);
+        this._fileData = await fs.readFile(path, {
+            encoding: "utf8"
+        });
         this._path = path;
         this._extension = mimeTypes.lookup(path);
 

@@ -46,7 +46,7 @@ const post = async (req, res) => {
     let parentIDString = req.body.parent;
     let parentID, folder;
 
-    if (typeof parentIDString === "object") {
+    if (validators.isObject(parentIDString)) {
         parentIDString = parentIDString.ID;
     }
     if (database.isID(parentIDString)) {

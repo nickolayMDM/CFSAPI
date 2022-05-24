@@ -129,7 +129,7 @@ let getSimpleFolderTreeFactory = (
     const addRootFolder = ({folders}) => {
         return {
             ID: null,
-            name: "--Root--",
+            name: "Home folder",
             children: folders
         };
     };

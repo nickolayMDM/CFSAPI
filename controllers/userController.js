@@ -3,6 +3,7 @@ const database = require("../adapters/databaseAdapter");
 const userCookieGenerator = require("../adapters/userCookieGeneratorAdapter");
 const debug = require("../adapters/debugAdapter");
 const hashing = require("../adapters/hashingAdapter");
+const mail = require("../adapters/mailAdapter");
 const generateGuestUserFactory = require("../useCases/generateGuestUser");
 const getUserByIDFactory = require("../useCases/getUserByID");
 const getUserByCookieFactory = require("../useCases/getUserByCookie");
@@ -10,9 +11,12 @@ const getUserByTokenFactory = require("../useCases/getUserByToken");
 const addPasswordAuthorizationToUserFactory = require("../useCases/addPasswordAuthorizationToUser");
 const getPostsCountFactory = require("../useCases/getPostsCount");
 const mergeUsersUseCaseFactory = require("../useCases/mergeUsers");
+const addOnetimePremiumPaymentFactory = require("../useCases/addOnetimePremiumPayment");
+const setUserAsPremiumFactory = require("../useCases/setUserAsPremium");
 const validators = require("../helpers/validators");
 const objectHelpers = require("../helpers/object");
 const httpHelpers = require("../helpers/http");
+const timeHelpers = require("../helpers/time");
 const config = require("../config");
 const RequestError = require("../errors/RequestError");
 
@@ -44,7 +48,6 @@ const _getUserByID = async (userID) => {
         database,
         RequestError
     });
-
     return await getUserByID({
         userID
     });
@@ -98,9 +101,7 @@ const setRequestUserMiddleware = async (req, res, next) => {
             IP: httpHelpers.getIPFromRequest(req)
         });
     } catch (error) {
-        await debug.returnServerError({
-            error
-        });
+        //Error silencer
     }
 
     if (typeof user !== "undefined") {
@@ -196,7 +197,15 @@ const getUserByPassword = async (req, res) => {
         });
     }
 
-    const sessionUser = await _getUserByID(sessionUserID);
+    let sessionUser;
+    try {
+        sessionUser = await _getUserByID(sessionUserID);
+    } catch (error) {
+        return await debug.returnServerError({
+            res,
+            error
+        });
+    }
     if (sessionUser.getStatus() === "guest") {
         let arePopulatedGuestContents = false;
         const getPostsCountUseCase = getPostsCountFactory({
@@ -239,6 +248,7 @@ const addPasswordAuthorizationToUser = async (req, res) => {
     const addPasswordAuthorizationToUser = addPasswordAuthorizationToUserFactory({
         validators,
         database,
+        mail,
         objectHelpers,
         hashing,
         RequestError
@@ -298,6 +308,48 @@ const mergeUserWithCurrent = async (req, res) => {
     return res.status(200).json({});
 };
 
+const payForPremium = async (req, res) => {
+    const status = httpHelpers.getParamFromRequest(req, "status");
+    const details = httpHelpers.getParamFromRequest(req, "details");
+    const sessionUserID = req.currentUserID;
+
+    const addOnetimePremiumPayment = addOnetimePremiumPaymentFactory({
+        validators,
+        database,
+        objectHelpers,
+        RequestError
+    });
+    const setUserAsPremium = setUserAsPremiumFactory({
+        validators,
+        database,
+        objectHelpers,
+        timeHelpers,
+        RequestError
+    });
+
+    let payment, user;
+    try {
+        payment = await addOnetimePremiumPayment({
+            userID: sessionUserID,
+            status,
+            details
+        });
+
+        user = await setUserAsPremium({
+            userID: sessionUserID
+        });
+    } catch (error) {
+        return await debug.returnServerError({
+            res,
+            error
+        });
+    }
+
+    return res.status(200).json({
+        user
+    });
+};
+
 module.exports = {
     authorize,
     getOwnUser,
@@ -305,5 +357,6 @@ module.exports = {
     authorizeMiddleware,
     getUserByPassword,
     addPasswordAuthorizationToUser,
-    mergeUserWithCurrent
+    mergeUserWithCurrent,
+    payForPremium
 };

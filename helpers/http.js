@@ -1,3 +1,5 @@
+const validators = require("./validators");
+
 const getNameFromUserAgent = (userAgent) => {
     let browserDataMatches = [...userAgent.matchAll(/ ([a-zA-Z\d]+?)\//g)];
     let result = browserDataMatches.reduce((accumulator, value) => {
@@ -19,4 +21,15 @@ const getIPFromRequest = (req) => {
     return req.connection.remoteAddress;
 };
 
-module.exports = { getNameFromUserAgent, getUserAgentFromRequest, getIPFromRequest };
+const getParamFromRequest = (req, key) => {
+    if (validators.isDefined(req.body)) {
+        return req.body[key];
+    }
+    if (validators.isDefined(req.query)) {
+        return req.query[key];
+    }
+
+    return null;
+};
+
+module.exports = { getNameFromUserAgent, getUserAgentFromRequest, getIPFromRequest, getParamFromRequest };

@@ -132,27 +132,6 @@ const databaseAdapter = {
 
         return null;
     },
-    // findAll: async ({collectionData, filter, project = {}, sort = {}}) => {
-    //     const databaseConnection = await getDatabaseConnection(databaseName);
-    //     let options = {};
-    //     if (validators.isPopulatedObject(project)) {
-    //         project = _convertIDPropertyToDatabase(project);
-    //         options.projection = project;
-    //     }
-    //
-    //     filter = _transformFilter(filter);
-    //
-    //     let result = databaseConnection.collection(collectionData.name).find(filter, options);
-    //     if (validators.isPopulatedObject(sort)) {
-    //         result.sort(sort);
-    //     }
-    //     result = await result.toArray();
-    //     if (!validators.isNull(result) && validators.isPopulatedArray(result)) {
-    //         result = _convertIDPropertyFromDatabase(result);
-    //     }
-    //
-    //     return result;
-    // },
     findAll: async ({collectionData, filter, project = {}, sort = {}, join = []}) => {
         const databaseConnection = await getDatabaseConnection(databaseName);
         filter = _transformFilter(filter);

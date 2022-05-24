@@ -8,10 +8,10 @@ const STATUS_BANNED = "banned";
 const STATUS_DISABLED = "disabled";
 
 const SUBSCRIPTION_FREE = "free";
-const SUBSCRIPTION_PRO = "pro";
+const SUBSCRIPTION_PREMIUM = "premium";
 const AVAILABLE_SUBSCRIPTIONS = [
     SUBSCRIPTION_FREE,
-    SUBSCRIPTION_PRO
+    SUBSCRIPTION_PREMIUM
 ];
 const DEFAULT_SUBSCRIPTION = SUBSCRIPTION_FREE;
 
@@ -94,7 +94,7 @@ const buildUserFactory = (
         if (!validators.isWithin(subscriptionType, AVAILABLE_SUBSCRIPTIONS)) {
             throw new Error(errorPrefix + "wrong subscription value.");
         }
-        if (subscriptionType === SUBSCRIPTION_PRO) {
+        if (subscriptionType === SUBSCRIPTION_PREMIUM) {
             if (validators.isTimestamp(subscriptionEndTimestamp)) {
                 if (Date.now() > subscriptionEndTimestamp) {
                     subscriptionType = DEFAULT_SUBSCRIPTION;
@@ -144,7 +144,7 @@ const getUserStatuses = () => {
 const getUserSubscriptions = () => {
     let resultObject = {};
     resultObject.SUBSCRIPTION_FREE = SUBSCRIPTION_FREE;
-    resultObject.SUBSCRIPTION_PRO = SUBSCRIPTION_PRO;
+    resultObject.SUBSCRIPTION_PREMIUM = SUBSCRIPTION_PREMIUM;
 
     return resultObject;
 };

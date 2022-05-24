@@ -8,6 +8,7 @@ let addPasswordAuthorizationToUserFactory = (
     {
         validators,
         database,
+        mail,
         objectHelpers,
         hashing,
         RequestError
@@ -125,6 +126,26 @@ let addPasswordAuthorizationToUserFactory = (
         return await hashing.hash(password);
     };
 
+    const sendMailToNewUser = async ({email, userStatus}) => {
+        const userStatuses = userEntity.getUserStatuses();
+
+        if (
+            !validators.isDefined(email)
+            || !validators.isEmail(email)
+            || !validators.isPopulatedString(userStatus)
+            || userStatus != userStatuses.STATUS_GUEST
+        ) {
+            return false;
+        }
+
+        let mailInstance = new mail();
+        await mailInstance.init();
+        let test = await mailInstance.sendFile({
+            to: email,
+            filesDirectory: "registration"
+        });
+    };
+
     return async (
         {
             userID,
@@ -184,6 +205,10 @@ let addPasswordAuthorizationToUserFactory = (
             token,
             password: hashedPassword,
             userAuthorizationCollectionData
+        });
+        await sendMailToNewUser({
+            email,
+            userStatus: user.getStatus()
         });
 
         await updateUserData({

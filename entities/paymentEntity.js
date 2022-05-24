@@ -129,4 +129,26 @@ const getPaymentStatuses = () => {
     return resultObject;
 };
 
-module.exports = {buildPaymentFactory, getCollectionData, getPaymentTypes, getPaymentReasons, getPaymentStatuses};
+const getApprovableStatuses = () => {
+    let resultObject = {};
+    resultObject.STATUS_PENDING = STATUS_PENDING;
+
+    return resultObject;
+};
+
+const getDeniableStatuses = () => {
+    let resultObject = {};
+    resultObject.STATUS_PENDING = STATUS_PENDING;
+
+    return resultObject;
+};
+
+module.exports = {
+    buildPaymentFactory,
+    getCollectionData,
+    getPaymentTypes,
+    getPaymentReasons,
+    getPaymentStatuses,
+    getApprovableStatuses,
+    getDeniableStatuses
+};

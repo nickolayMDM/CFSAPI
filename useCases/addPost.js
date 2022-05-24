@@ -9,6 +9,7 @@ let addPostFactory = (
         validators,
         database,
         objectHelpers,
+        textHelpers,
         processPostInput,
         imageProcessorObject,
         RequestError
@@ -62,7 +63,7 @@ let addPostFactory = (
         await imageProcessor.saveToPath(path);
     };
 
-    const addPost = async ({postID, userID, folderID, name, postInputData, postCollectionData, url}) => {
+    const addPost = async ({postID, userID, folderID, name, note, postInputData, postCollectionData, url}) => {
         const buildPost = postEntity.buildPostFactory({
             validators,
             database
@@ -73,6 +74,7 @@ let addPostFactory = (
             userID,
             folderID,
             name: (validators.isPopulatedString(name)) ? name : postInputData.name,
+            note,
             originalData: JSON.stringify(postInputData.originalData),
             url,
             author: postInputData.author
@@ -91,6 +93,7 @@ let addPostFactory = (
             userID,
             folderID,
             name,
+            note = "",
             url,
             data
         } = {}
@@ -100,6 +103,10 @@ let addPostFactory = (
             || !validators.isUrl(url)
             || !validators.isPopulatedString(name)
             || (
+                validators.isDefined(note)
+                && !validators.isString(note)
+            )
+            || (
                 validators.isDefined(folderID)
                 && !database.isID(folderID)
             )
@@ -108,10 +115,14 @@ let addPostFactory = (
                 userID,
                 folderID,
                 name,
+                note,
                 url,
                 data
             });
         }
+
+        name = textHelpers.trimSpaces(name);
+        note = textHelpers.trimSpaces(note);
 
         const folderData = await database.findOne({
             collectionData: folderEntity.getCollectionData(),
@@ -170,6 +181,7 @@ let addPostFactory = (
             userID,
             folderID,
             name,
+            note,
             postInputData: processPostInputResult.response.postDetails,
             postCollectionData,
             url
@@ -183,6 +195,7 @@ let addPostFactory = (
         let postData = objectHelpers.transformEntityIntoASimpleObject(post, [
             "ID",
             "name",
+            "note",
             "url",
             "folderID"
         ]);

@@ -45,6 +45,13 @@ const initiate = (app) => {
         type: "put",
         func: userController.mergeUserWithCurrent
     });
+
+    route.setRoute({
+        app,
+        path: "/payForPremium",
+        type: "put",
+        func: userController.payForPremium
+    });
 };
 
 module.exports = initiate;

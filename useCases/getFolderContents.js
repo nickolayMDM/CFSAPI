@@ -79,16 +79,16 @@ let getFolderContentsFactory = (
         });
     };
 
-    const addIsEmptyToFolders = async ({folders, userID}) => {
+    const addIsEmptyToFolders = async ({folders, userID, folderCollectionData}) => {
         if (folders.length < 1) {
             return folders;
         }
 
         const postCollectionData = postEntity.getCollectionData();
-        let folderPostIDToArrayKeyCorrelation = {};
+        let folderIDToArrayKeyCorrelation = {};
         let folderIDs = folders.reduce((accumulator, value, index) => {
             folders[index].isEmpty = true;
-            folderPostIDToArrayKeyCorrelation[value.ID] = index;
+            folderIDToArrayKeyCorrelation[value.ID] = index;
             accumulator.push(value.ID);
 
             return accumulator;
@@ -103,11 +103,31 @@ let getFolderContentsFactory = (
             },
             group: "folderID"
         });
+        const folderCounts = await database.count({
+            collectionData: folderCollectionData,
+            filter: {
+                parentID: {$in: folderIDs},
+                isDeleted: false,
+                userID
+            },
+            group: "parentID"
+        });
 
         for (let key in postCounts) {
+            if (!postCounts.hasOwnProperty(key)) continue;
+
             const ID = postCounts[key].ID.toString();
-            const foldersArrayKey = folderPostIDToArrayKeyCorrelation[ID];
-            folders[foldersArrayKey].isEmpty = !validators.isPositiveInt(postCounts[key].count);
+            const foldersArrayKey = folderIDToArrayKeyCorrelation[ID];
+            const isEmpty = !validators.isPositiveInt(postCounts[key].count);
+            if (!isEmpty) folders[foldersArrayKey].isEmpty = isEmpty;
+        }
+        for (let key in folderCounts) {
+            if (!folderCounts.hasOwnProperty(key)) continue;
+
+            const ID = folderCounts[key].ID.toString();
+            const foldersArrayKey = folderIDToArrayKeyCorrelation[ID];
+            const isEmpty = !validators.isPositiveInt(folderCounts[key].count);
+            if (!isEmpty) folders[foldersArrayKey].isEmpty = isEmpty;
         }
 
         return folders;
@@ -130,6 +150,34 @@ let getFolderContentsFactory = (
         return buildFolder(folderData);
     };
 
+    const getParentFolderData = async ({originFolder, folderCollectionData}) => {
+        if (
+            !validators.isPopulatedObject(originFolder)
+            || !validators.isFunction(originFolder.getParentID)
+        ) {
+            return {};
+        }
+
+        const folderData = await database.findOne({
+            collectionData: folderCollectionData,
+            filter: {
+                ID: originFolder.getParentID(),
+                userID: originFolder.getUserID(),
+                isDeleted: false
+            }
+        });
+        const buildFolder = folderEntity.buildFolderFactory({
+            validators,
+            database
+        });
+        const folder = buildFolder(folderData);
+
+        return objectHelpers.transformEntityIntoASimpleObject(folder, [
+            "ID",
+            "name"
+        ]);
+    };
+
     return async (
         {
             userID,
@@ -147,31 +195,36 @@ let getFolderContentsFactory = (
                 folderID
             });
         }
-        let parentFolder;
+        let originFolder;
         const folderCollectionData = folderEntity.getCollectionData();
 
         if (validators.isDefined(folderID)) {
-            parentFolder = await getFolderFromDatabase({
+            originFolder = await getFolderFromDatabase({
                 userID,
                 folderID,
                 folderCollectionData
             });
 
-            if (validators.isNull(parentFolder)) {
-                throw new RequestError(errorPrefix + "parent folder not found", {
+            if (validators.isNull(originFolder)) {
+                throw new RequestError(errorPrefix + "folder not found", {
                     userID,
                     folderID
                 });
             }
         }
 
+        let parent = await getParentFolderData({
+            originFolder,
+            folderCollectionData
+        });
         let folders = await findAllFolders({
             userID,
             folderID
         });
         folders = await addIsEmptyToFolders({
             folders,
-            userID
+            userID,
+            folderCollectionData
         });
         let posts = await findAllPosts({
             userID,
@@ -179,7 +232,8 @@ let getFolderContentsFactory = (
         });
         let response = {
             folders,
-            posts
+            posts,
+            parent
         };
 
         await insertUserLog({
@@ -188,7 +242,7 @@ let getFolderContentsFactory = (
         });
 
         if (validators.isDefined(folderID)) {
-            let folderData = objectHelpers.transformEntityIntoASimpleObject(parentFolder, [
+            let folderData = objectHelpers.transformEntityIntoASimpleObject(originFolder, [
                 "ID",
                 "name",
                 "parentID"
