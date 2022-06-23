@@ -61,6 +61,7 @@ const add = async (req, res) => {
     const data = req.body.data;
     const name = req.body.name;
     const note = req.body.note;
+    const provider = req.body.provider;
     const sessionUserID = req.currentUserID;
     let folderIDString = req.body.folder;
     let folderID, post;
@@ -89,6 +90,7 @@ const add = async (req, res) => {
             data,
             name,
             note,
+            provider,
             folderID
         });
     } catch (error) {
