@@ -63,7 +63,7 @@ let addPostFactory = (
         await imageProcessor.saveToPath(path);
     };
 
-    const addPost = async ({postID, userID, folderID, name, note, postInputData, postCollectionData, url}) => {
+    const addPost = async ({postID, userID, folderID, name, note, postInputData, postCollectionData, url, provider}) => {
         const buildPost = postEntity.buildPostFactory({
             validators,
             database
@@ -77,7 +77,8 @@ let addPostFactory = (
             note,
             originalData: JSON.stringify(postInputData.originalData),
             url,
-            author: postInputData.author
+            author: postInputData.author,
+            provider
         });
 
         await database.insertEntity({
@@ -95,7 +96,8 @@ let addPostFactory = (
             name,
             note = "",
             url,
-            data
+            data,
+            provider
         } = {}
     ) => {
         if (
@@ -117,7 +119,8 @@ let addPostFactory = (
                 name,
                 note,
                 url,
-                data
+                data,
+                provider
             });
         }
 
@@ -184,7 +187,8 @@ let addPostFactory = (
             note,
             postInputData: processPostInputResult.response.postDetails,
             postCollectionData,
-            url
+            url,
+            provider
         });
 
         await insertUserLog({
@@ -197,7 +201,8 @@ let addPostFactory = (
             "name",
             "note",
             "url",
-            "folderID"
+            "folderID",
+            "provider"
         ]);
         return Object.freeze(postData);
     }

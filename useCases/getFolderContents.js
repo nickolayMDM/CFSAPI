@@ -40,7 +40,7 @@ let getFolderContentsFactory = (
         });
     };
 
-    const findAllFolders = async ({userID, folderID}) => {
+    const findAllFolders = async ({userID, folderID, sortBy}) => {
         const folderCollectionData = folderEntity.getCollectionData();
         let filter = {
             userID,
@@ -52,14 +52,15 @@ let getFolderContentsFactory = (
             filter.parentID = {$exists: false};
         }
 
+        const sortObject = getSortObject({sortBy});
         return await database.findAll({
             collectionData: folderCollectionData,
             filter,
-            sort: {isPinned: -1}
+            sort: sortObject
         });
     };
 
-    const findAllPosts = async ({userID, folderID}) => {
+    const findAllPosts = async ({userID, folderID, sortBy}) => {
         const postCollectionData = postEntity.getCollectionData();
 
         let filter = {
@@ -75,7 +76,7 @@ let getFolderContentsFactory = (
         return await database.findAll({
             collectionData: postCollectionData,
             filter,
-            sort: {isPinned: -1}
+            sort: getSortObject({sortBy})
         });
     };
 
@@ -178,10 +179,24 @@ let getFolderContentsFactory = (
         ]);
     };
 
+    const getSortObject = ({sortBy}) => {
+        switch (sortBy) {
+            case "name":
+                return {isPinned: -1, name: 1};
+            case "date":
+                return {isPinned: -1, createdTimestamp: -1};
+            case "dateAsc":
+                return {isPinned: -1, createdTimestamp: 1};
+        }
+
+        return {isPinned: -1};
+    };
+
     return async (
         {
             userID,
-            folderID
+            folderID,
+            sortBy
         } = {}
     ) => {
         if (
@@ -189,10 +204,16 @@ let getFolderContentsFactory = (
             || (
                 validators.isDefined(folderID)
                 && !database.isID(folderID)
-            )) {
+            )
+            || (
+                validators.isDefined(sortBy)
+                && !validators.isPopulatedString(sortBy)
+            )
+        ) {
             throw new RequestError(errorPrefix + "invalid data passed", {
                 userID,
-                folderID
+                folderID,
+                sortBy
             });
         }
         let originFolder;
@@ -219,7 +240,8 @@ let getFolderContentsFactory = (
         });
         let folders = await findAllFolders({
             userID,
-            folderID
+            folderID,
+            sortBy
         });
         folders = await addIsEmptyToFolders({
             folders,
@@ -228,7 +250,8 @@ let getFolderContentsFactory = (
         });
         let posts = await findAllPosts({
             userID,
-            folderID
+            folderID,
+            sortBy
         });
         let response = {
             folders,

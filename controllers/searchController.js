@@ -6,6 +6,7 @@ const RequestError = require("../errors/RequestError");
 
 const getSearchedContent = async (req, res) => {
     const searchQuery = req.query.search;
+    const sortBy = req.query.sortBy;
     const sessionUserID = req.currentUserID;
     let contents = {};
 
@@ -18,7 +19,8 @@ const getSearchedContent = async (req, res) => {
     try {
         contents = await getSearchedContentUseCase({
             userID: sessionUserID,
-            searchQuery
+            searchQuery,
+            sortBy
         });
     } catch (error) {
         return await debug.returnServerError({

@@ -15,6 +15,7 @@ const config = require("../config");
 
 const getContents = async (req, res) => {
     const folderID = req.query.folder;
+    const sortBy = req.query.sortBy;
     const sessionUserID = req.currentUserID;
     let contents = {};
 
@@ -28,7 +29,8 @@ const getContents = async (req, res) => {
     try {
         contents = await getFolderContentsUseCase({
             userID: sessionUserID,
-            folderID
+            folderID,
+            sortBy
         });
     } catch (error) {
         return await debug.returnServerError({

@@ -1,8 +1,8 @@
 const request = require("../../../adapters/requestAdapter");
 const config = require("../../../config");
 
-const host = config.managerService.tiktok.host;
-const authString = config.managerService.tiktok.authString;
+const host = config.managerService.youtube.host;
+const authString = config.managerService.youtube.authString;
 
 const getPostDetailsFromInput = async (postInput) => {
     const requestResult = await request.post({

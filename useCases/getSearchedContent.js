@@ -40,7 +40,7 @@ let getSearchedContentFactory = (
         });
     };
 
-    const findAllFolders = async ({userID, searchQuery}) => {
+    const findAllFolders = async ({userID, searchQuery, sortBy}) => {
         const folderCollectionData = folderEntity.getCollectionData();
         const searchRegExp = new RegExp(".*" + searchQuery + ".*", "i");
 
@@ -50,13 +50,16 @@ let getSearchedContentFactory = (
             name: searchRegExp
         };
 
+        const sortObject = getSortObject({sortBy});
         return await database.findAll({
             collectionData: folderCollectionData,
             filter,
             project: {
                 ID: 1,
-                name: 1
-            }
+                name: 1,
+                createdTimestamp: 1
+            },
+            sort: sortObject
         });
     };
 
@@ -98,7 +101,7 @@ let getSearchedContentFactory = (
         return folders;
     };
 
-    const findAllPosts = async ({userID, searchQuery}) => {
+    const findAllPosts = async ({userID, searchQuery, sortBy}) => {
         const postCollectionData = postEntity.getCollectionData();
         const searchRegExp = new RegExp(".*" + searchQuery + ".*", "i");
 
@@ -113,6 +116,7 @@ let getSearchedContentFactory = (
             ]
         };
 
+        const sortObject = getSortObject({sortBy});
         return await database.findAll({
             collectionData: postCollectionData,
             filter,
@@ -124,6 +128,7 @@ let getSearchedContentFactory = (
                 folderID: 1,
                 author: 1,
                 folder: 1,
+                createdTimestamp: 1
             },
             join: [
                 {
@@ -132,7 +137,8 @@ let getSearchedContentFactory = (
                     fromField: "ID",
                     outputKey: "folder"
                 }
-            ]
+            ],
+            sort: sortObject
         });
     };
 
@@ -151,19 +157,38 @@ let getSearchedContentFactory = (
         });
     };
 
+    const getSortObject = ({sortBy}) => {
+        switch (sortBy) {
+            case "name":
+                return {isPinned: -1, name: 1};
+            case "date":
+                return {isPinned: -1, createdTimestamp: -1};
+            case "dateAsc":
+                return {isPinned: -1, createdTimestamp: 1};
+        }
+
+        return {isPinned: -1};
+    };
+
     return async (
         {
             userID,
-            searchQuery
+            searchQuery,
+            sortBy
         } = {}
     ) => {
         if (
             !database.isID(userID)
             || !validators.isPopulatedString(searchQuery)
+            || (
+                validators.isDefined(sortBy)
+                && !validators.isPopulatedString(sortBy)
+            )
         ) {
             throw new RequestError(errorPrefix + "invalid data passed", {
                 userID,
-                searchQuery
+                searchQuery,
+                sortBy
             });
         }
 
@@ -188,7 +213,8 @@ let getSearchedContentFactory = (
 
         let folders = await findAllFolders({
             userID,
-            searchQuery
+            searchQuery,
+            sortBy
         });
         //TODO: move addIsEmptyToFolders outside of the use case since it is used more than once
         folders = await addIsEmptyToFolders({
@@ -198,7 +224,8 @@ let getSearchedContentFactory = (
 
         let posts = await findAllPosts({
             userID,
-            searchQuery
+            searchQuery,
+            sortBy
         });
         posts = transformPosts({
             posts

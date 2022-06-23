@@ -1,6 +1,9 @@
 const express = require("express");
+const http = require("http");
+const https = require("https");
 const session = require("./adapters/sessionAdapter");
 const database = require("./adapters/databaseAdapter");
+const file = require("./adapters/fileAdapter");
 const debug = require("./adapters/debugAdapter");
 const validators = require("./helpers/validators");
 const initializeRoutes = require("./routers");
@@ -30,6 +33,8 @@ app.use(session.initialize({
 }));
 initializeRoutes(app);
 
-app.listen(port, () => {
-    console.log(`App listening at http://localhost:${port}`);
+const httpServer = http.createServer(app);
+
+httpServer.listen(port, () => {
+    console.log(`App listening as http:${port}`);
 });

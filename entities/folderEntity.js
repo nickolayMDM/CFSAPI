@@ -18,7 +18,8 @@ const buildFolderFactory = (
             level = 1,
             position = 1,
             isDeleted = false,
-            isPinned = false
+            isPinned = false,
+            createdTimestamp = Date.now()
         } = {}
     ) => {
         let folderObject = {
@@ -28,7 +29,8 @@ const buildFolderFactory = (
             getLevel: () => level,
             getPosition: () => position,
             getIsDeleted: () => isDeleted,
-            getIsPinned: () => isPinned
+            getIsPinned: () => isPinned,
+            getCreatedTimestamp: () => createdTimestamp
         };
 
         if (!database.isID(ID)) {

@@ -48,6 +48,7 @@ const buildUserFactory = (
             status = STATUS_GUEST,
             subscriptionType = DEFAULT_SUBSCRIPTION,
             subscriptionEndTimestamp,
+            language,
             parentID
         } = {}
     ) => {
@@ -102,6 +103,14 @@ const buildUserFactory = (
 
                 userObject.getSubscriptionEndTimestamp = () => subscriptionEndTimestamp;
             }
+        }
+
+        if (validators.isDefined(language)) {
+            if (!validators.isPopulatedString(language)) {
+                throw new Error(errorPrefix + "invalid language format.");
+            }
+
+            userObject.getLanguage = () => language;
         }
 
         if (validators.isDefined(parentID)) {

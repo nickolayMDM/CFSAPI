@@ -74,6 +74,19 @@ let addPasswordAuthorizationToUserFactory = (
         return userAuthorizationData;
     };
 
+    const getUserPasswordAuthorizationByToken = async ({token, userAuthorizationCollectionData}) => {
+        const userAuthorizationData = await database.findOne({
+            collectionData: userAuthorizationCollectionData,
+            filter: {
+                token,
+                variant: "password",
+                isActive: true
+            }
+        });
+
+        return userAuthorizationData;
+    };
+
     const addUserAuthorization = async ({userID, token, password, userAuthorizationCollectionData}) => {
         const buildUserAuthorization = userAuthorizationEntity.buildUserAuthorizationFactory({
             validators,
@@ -138,12 +151,14 @@ let addPasswordAuthorizationToUserFactory = (
             return false;
         }
 
-        let mailInstance = new mail();
-        await mailInstance.init();
-        let test = await mailInstance.sendFile({
-            to: email,
-            filesDirectory: "registration"
-        });
+        //TODO: this causes 500 error for some reason
+
+        // let mailInstance = new mail();
+        // await mailInstance.init();
+        // let test = await mailInstance.sendFile({
+        //     to: email,
+        //     filesDirectory: "registration"
+        // });
     };
 
     return async (
@@ -178,6 +193,7 @@ let addPasswordAuthorizationToUserFactory = (
 
         const userCollectionData = userEntity.getCollectionData();
         const userAuthorizationCollectionData = userAuthorizationEntity.getCollectionData();
+        const token = login;
 
         let user = await getUser({
             userID,
@@ -186,7 +202,7 @@ let addPasswordAuthorizationToUserFactory = (
         if (validators.isNull(user)) {
             throw new RequestError(errorPrefix + "user with given ID was not found", {
                 userID
-            });
+            }, "userNotFound");
         }
         const existingUserPasswordAuthorization = await getUserPasswordAuthorization({
             userID,
@@ -195,10 +211,19 @@ let addPasswordAuthorizationToUserFactory = (
         if (!validators.isNull(existingUserPasswordAuthorization)) {
             throw new RequestError(errorPrefix + "user already has a password authorization method", {
                 userID
-            });
+            }, "authExists");
         }
 
-        const token = login;
+        const existingUserPasswordAuthorizationToken = await getUserPasswordAuthorizationByToken({
+            token,
+            userAuthorizationCollectionData
+        });
+        if (!validators.isNull(existingUserPasswordAuthorizationToken)) {
+            throw new RequestError(errorPrefix + "token is already in use", {
+                userID
+            }, "tokenExists");
+        }
+
         const hashedPassword = await securePassword(password);
         await addUserAuthorization({
             userID: user.getID(),

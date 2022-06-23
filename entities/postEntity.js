@@ -19,8 +19,10 @@ const buildPostFactory = (
             name,
             author,
             note = "",
+            provider,
             isDeleted = false,
-            isPinned = false
+            isPinned = false,
+            createdTimestamp = Date.now()
         } = {}
     ) => {
         let postObject = {
@@ -30,8 +32,10 @@ const buildPostFactory = (
             getUrl: () => url,
             getName: () => name,
             getNote: () => note,
+            getProvider: () => provider,
             getIsDeleted: () => isDeleted,
-            getIsPinned: () => isPinned
+            getIsPinned: () => isPinned,
+            getCreatedTimestamp: () => createdTimestamp
         };
 
         if (!database.isID(ID)) {
@@ -75,6 +79,10 @@ const buildPostFactory = (
             }
 
             postObject.getAuthor = () => author;
+        }
+
+        if (!validators.isString(provider)) {
+            throw new Error(errorPrefix + "provider value must be a string.");
         }
 
         if (!validators.isBoolean(isDeleted)) {

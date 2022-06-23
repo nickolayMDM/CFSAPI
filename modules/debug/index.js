@@ -10,6 +10,27 @@ const initialize = ({databaseAdapter, serverLogEntity, validators}) => {
     _validators = validators;
 };
 
+const getErrorCode = (error) => {
+    if (_validators.isPositiveInt(error.code)) {
+        return error.code;
+    }
+
+    if (error instanceof TypeError) {
+        return 400;
+    }
+
+    return 500;
+};
+
+const getErrorJson = (error) => {
+    let json = {error: error.message};
+    if (_validators.isPopulatedString(error.name)) {
+        json.name = error.name;
+    }
+
+    return json;
+};
+
 const returnServerError = async ({res, error}) => {
     const serverLogCollectionData = _serverLogEntity.getCollectionData();
     const buildServerLog = _serverLogEntity.buildServerLogFactory({
@@ -33,11 +54,10 @@ const returnServerError = async ({res, error}) => {
     });
 
     if (typeof res !== "undefined") {
-        let errorStatus = 500;
-        if (error instanceof TypeError) {
-            errorStatus = 400;
-        }
-        return res.status(errorStatus).json({error: error.message});
+        const errorStatus = getErrorCode(error);
+        const errorJson = getErrorJson(error);
+
+        return res.status(errorStatus).json(errorJson);
     }
 };
 

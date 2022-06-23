@@ -13,6 +13,7 @@ const getPostsCountFactory = require("../useCases/getPostsCount");
 const mergeUsersUseCaseFactory = require("../useCases/mergeUsers");
 const addOnetimePremiumPaymentFactory = require("../useCases/addOnetimePremiumPayment");
 const setUserAsPremiumFactory = require("../useCases/setUserAsPremium");
+const setUserLanguageFactory = require("../useCases/setUserLanguage");
 const validators = require("../helpers/validators");
 const objectHelpers = require("../helpers/object");
 const httpHelpers = require("../helpers/http");
@@ -350,6 +351,35 @@ const payForPremium = async (req, res) => {
     });
 };
 
+const setLanguage = async (req, res) => {
+    const language = httpHelpers.getParamFromRequest(req, "language");
+    const sessionUserID = req.currentUserID;
+
+    const setUserLanguage = setUserLanguageFactory({
+        validators,
+        database,
+        objectHelpers,
+        RequestError
+    });
+
+    let user;
+    try {
+        user = await setUserLanguage({
+            userID: sessionUserID,
+            language
+        });
+    } catch (error) {
+        return await debug.returnServerError({
+            res,
+            error
+        });
+    }
+
+    return res.status(200).json({
+        user
+    });
+};
+
 module.exports = {
     authorize,
     getOwnUser,
@@ -358,5 +388,6 @@ module.exports = {
     getUserByPassword,
     addPasswordAuthorizationToUser,
     mergeUserWithCurrent,
-    payForPremium
+    payForPremium,
+    setLanguage
 };

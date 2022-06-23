@@ -52,6 +52,13 @@ const initiate = (app) => {
         type: "put",
         func: userController.payForPremium
     });
+
+    route.setRoute({
+        app,
+        path: "/setUserLanguage",
+        type: "put",
+        func: userController.setLanguage
+    });
 };
 
 module.exports = initiate;

@@ -87,7 +87,7 @@ let getUserByTokenFactory = (
                 deviceValue,
                 IP,
                 additional
-            });
+            }, "noMethod");
         }
 
         if (variant === userAuthorizationEntity.getUserAuthorizationVariants().VARIANT_PASSWORD) {
@@ -99,7 +99,7 @@ let getUserByTokenFactory = (
                     deviceValue,
                     IP,
                     additional
-                });
+                }, "wrongPassword");
             }
         }
 
@@ -138,7 +138,8 @@ let getUserByTokenFactory = (
             "name",
             "email",
             "status",
-            "subscriptionType"
+            "subscriptionType",
+            "language"
         ]);
         const cookie = await userCookieGenerator.generateUserCookie({
             deviceValue,

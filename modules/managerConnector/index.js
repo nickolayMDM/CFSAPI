@@ -1,9 +1,11 @@
 const validators = require("../../helpers/validators");
 
 const tiktokHandler = require("./handlers/tiktokHandler");
+const youtubeHandler = require("./handlers/youtubeHandler");
 
 const managerHandlers = {
-    tiktok: tiktokHandler
+    tiktok: tiktokHandler,
+    youtube: youtubeHandler,
 };
 
 const getPostDetailsFromInput = async ({postInput, useManagers = []}) => {
