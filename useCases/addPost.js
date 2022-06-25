@@ -175,10 +175,12 @@ let addPostFactory = (
         const postID = database.generateID({
             collectionName: postEntity.getCollectionData()
         });
-        await saveImage({
-            url: processPostInputResult.response.postDetails.imageUrl,
-            postID
-        });
+        if (validators.isDefined(processPostInputResult.response.postDetails.imageUrl)) {
+            await saveImage({
+                url: processPostInputResult.response.postDetails.imageUrl,
+                postID
+            });
+        }
         const post = await addPost({
             postID,
             userID,
